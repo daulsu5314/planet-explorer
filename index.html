@@ -234,6 +234,16 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 .zoom-bin .zc svg{width:56px;height:60px;}
 .zoom-bin .zc span{font-size:11px;color:var(--text);margin-top:2px;}
 .zoom-empty{font-size:13px;color:var(--text-tertiary,#7a86b6);text-align:center;padding:8px;}
+.cscore{background:rgba(255,255,255,.03);border:1px solid var(--panel-line);border-radius:14px;
+  padding:14px 16px;margin-bottom:16px;}
+.cscore-h{font-size:13px;font-weight:700;color:var(--cyan);margin-bottom:12px;}
+.cscore-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12.5px;}
+.cscore-row .csl{min-width:64px;color:var(--text-dim);}
+.cscore-row .cst{flex:1;height:14px;background:rgba(255,255,255,.05);border-radius:6px;overflow:hidden;}
+.cscore-row .cst > i{display:block;height:100%;border-radius:6px;background:rgba(155,107,255,.5);transition:width .5s;}
+.cscore-row .cst > i.top{background:linear-gradient(90deg,var(--cyan),var(--violet));}
+.cscore-row .csn{min-width:38px;text-align:right;font-family:var(--display);font-size:12px;}
+.cscore-note{font-size:11.5px;color:var(--text-dim);margin-top:10px;line-height:1.6;}
 
 /* ---- teacher dashboard ---- */
 #teacher{max-width:1100px;padding-top:30px;}
@@ -249,9 +259,11 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   padding:16px;backdrop-filter:blur(10px);animation:reveal .4s ease both;cursor:pointer;transition:.15s;}
 .sub-card:hover{border-color:var(--cyan);transform:translateY(-2px);box-shadow:0 8px 28px rgba(55,230,224,.18);}
 .sub-card .nm{font-family:var(--display);font-size:14px;font-weight:700;margin-bottom:4px;
-  display:flex;align-items:center;justify-content:space-between;gap:8px;}
-.sub-card .crit{font-size:11.5px;color:var(--cyan);background:rgba(55,230,224,.1);
-  padding:2px 9px;border-radius:8px;font-weight:500;}
+  display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.crit-wrap{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:62%;}
+.sub-card .crit{font-size:11px;color:var(--text-dim);background:rgba(255,255,255,.06);
+  padding:2px 8px;border-radius:8px;font-weight:500;white-space:nowrap;}
+.sub-card .crit.top{color:var(--cyan);background:rgba(55,230,224,.14);}
 .sub-card .mini-bins{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px;}
 .sub-card .mb{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
   border-radius:9px;padding:5px;min-height:50px;}
@@ -583,14 +595,6 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   <div id="liveSection" style="display:none;margin-bottom:18px;">
     <h2 class="sec" style="margin-bottom:12px;">📡 대원별 실시간 분류 현황</h2>
     <div class="boards" id="liveBoards"></div>
-  </div>
-
-  <div class="tally" id="tally" style="display:none;">
-    <h4>📊 무엇을 기준으로 묶었나? (반 전체 집계)</h4>
-    <div id="tallyBars"></div>
-    <div style="font-size:12.5px;color:var(--text-dim);margin-top:10px;line-height:1.6;">
-      👉 같은 생명체인데도 대원마다 다른 기준으로 묶었습니다. <b style="color:var(--cyan)">정답표가 없으면 무엇에 주목하느냐에 따라 군집이 달라진다</b> — 이게 비지도학습의 핵심이에요.
-    </div>
   </div>
 
   <div class="boards" id="boards">
@@ -1195,10 +1199,19 @@ function zoomBinsHTML(order){
 }
 function openZoom(name, order){
   document.getElementById('zoomName').textContent='🧑‍🚀 '+name;
-  const crit=inferCriterion(order);
   const placed=order.split('').filter(c=>c!=='-').length;
-  document.getElementById('zoomCrit').textContent=`${crit} 기준 · ${placed}/${creatures.length}마리 분류`;
-  document.getElementById('zoomBody').innerHTML=zoomBinsHTML(order);
+  document.getElementById('zoomCrit').textContent=`${placed}/${creatures.length}마리 분류`;
+  /* multiple criteria: a grouping can fit several features at once */
+  const scores=criterionScores(order);
+  const bars=scores.filter(x=>x.pct>0).map((x,i)=>
+    `<div class="cscore-row"><span class="csl">${x.label}</span><span class="cst"><i class="${i===0?'top':''}" style="width:${x.pct}%"></i></span><span class="csn">${x.pct}%</span></div>`
+  ).join('');
+  const critBox=`<div class="cscore">
+    <div class="cscore-h">이 분류는 여러 기준으로 설명될 수 있어요 (적합도)</div>
+    ${bars}
+    <div class="cscore-note">👉 한 가지 정답이 있는 게 아니라, 같은 묶음도 여러 특징으로 볼 수 있습니다.</div>
+  </div>`;
+  document.getElementById('zoomBody').innerHTML=critBox+zoomBinsHTML(order);
   document.getElementById('zoomModal').classList.remove('hidden');
   beep(560,0.08,'sine',0.05);
 }
@@ -1236,27 +1249,21 @@ function renderTeacher(){
   if(!subs.length){
     empty.style.display='block';
     boards.querySelectorAll('.sub-card').forEach(c=>c.remove());
-    document.getElementById('tally').style.display='none';
     document.getElementById('tProceed').style.display='none';
     return;
   }
   empty.style.display='none';
   boards.querySelectorAll('.sub-card').forEach(c=>c.remove());
   subs.forEach(s=>{
-    const crit=inferCriterion(s.order);
+    const scores=criterionScores(s.order);
+    const tops=scores.filter(x=>x.pct>=60).slice(0,3);
+    const badges=(tops.length?tops:scores.slice(0,1)).map((x,i)=>
+      `<span class="crit${i===0?' top':''}">${x.label} ${x.pct}%</span>`).join('');
     const card=document.createElement('div'); card.className='sub-card';
-    card.innerHTML=`<div class="nm">🧑‍🚀 ${s.name}<span class="crit">${crit} 기준</span></div>`+miniBins(s.order);
+    card.innerHTML=`<div class="nm">🧑‍🚀 ${s.name}<span class="crit-wrap">${badges}</span></div>`+miniBins(s.order);
     card.onclick=()=>openZoom(s.name, s.order);
     boards.appendChild(card);
   });
-  const counts={};
-  subs.forEach(s=>{ const c=inferCriterion(s.order); counts[c]=(counts[c]||0)+1; });
-  const max=Math.max(...Object.values(counts));
-  const bars=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
-    `<div class="bar-row"><span class="bl">${k}</span><span class="bt"><i style="width:${v/max*100}%"></i></span><span class="bn">${v}명</span></div>`
-  ).join('');
-  document.getElementById('tallyBars').innerHTML=bars;
-  document.getElementById('tally').style.display='block';
   document.getElementById('tProceed').style.display='block';
   refreshRoster();
 }
@@ -1449,6 +1456,31 @@ function inferCriterion(order){
     if(purity>bestScore){bestScore=purity; best=labels[f];}
   });
   return bestScore>=0.95?best:(best+' 위주');
+}
+
+/* compute how well EACH feature explains a grouping (not just the single best).
+   returns [{label, pct}] sorted high→low — a grouping can match several criteria. */
+function criterionScores(order){
+  const feats=['c','shape','legs','eyes','tentacles','pattern','horns','big'];
+  const labels={c:'색깔',shape:'모양',legs:'다리 수',eyes:'눈 개수',
+                tentacles:'촉수 수',pattern:'무늬',horns:'뿔',big:'크기'};
+  const out=[];
+  feats.forEach(f=>{
+    const bins={};
+    for(let i=0;i<order.length;i++){
+      const b=order[i]; if(b==='-')continue;
+      const v=String(creatures[i][f]);
+      bins[b]=bins[b]||{}; bins[b][v]=(bins[b][v]||0)+1;
+    }
+    let score=0,total=0;
+    Object.values(bins).forEach(vc=>{
+      score+=Math.max(...Object.values(vc));
+      total+=Object.values(vc).reduce((a,b)=>a+b,0);
+    });
+    const pct= total? Math.round(score/total*100) : 0;
+    out.push({label:labels[f], pct});
+  });
+  return out.sort((a,b)=>b.pct-a.pct);
 }
 
 /* ================= Intro: role selection ================= */
