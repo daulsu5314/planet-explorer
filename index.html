@@ -1045,7 +1045,7 @@ function emit(m){
 /* unified receive handler */
 function handleMsg(m){
   const inTeacher=document.getElementById('teacher').style.display==='block';
-  if(m.type==='report' && inTeacher){ addLocalSub(m.report); renderTeacher(); beep(660,0.08,'sine',0.05); }
+  if(m.type==='report' && inTeacher){ addLocalSub(m.report); renderTeacher(); renderLive(); beep(660,0.08,'sine',0.05); }
   if(m.type==='arrive' && inTeacher){ addArrival(m.name); }
   if(m.type==='progress' && inTeacher){ updateLive(m); }
   if(m.type==='rollcall'){
@@ -1162,13 +1162,14 @@ function liveBins(order){
 }
 function renderLive(){
   const wrap=document.getElementById('liveBoards');
-  const names=Object.keys(liveMap);
-  if(!names.length){ document.getElementById('liveSection').style.display='none'; return; }
+  /* show only students still classifying — once reported, the final result card below takes over */
+  const names=Object.keys(liveMap).filter(n=>!liveMap[n].done && !getSubs().some(s=>s.name===n));
+  if(!names.length){ wrap.innerHTML=''; document.getElementById('liveSection').style.display='none'; return; }
   document.getElementById('liveSection').style.display='block';
   wrap.innerHTML=names.map(n=>{
     const d=liveMap[n];
     const pct=Math.round(d.placed/d.total*100);
-    const status=d.done?'<span class="lst done">✅ 보고 완료</span>':`<span class="lst working">분류 중 ${d.placed}/${d.total}</span>`;
+    const status=`<span class="lst working">분류 중 ${d.placed}/${d.total}</span>`;
     return `<div class="live-card" data-name="${encodeURIComponent(n)}" data-order="${d.order}">
       <div class="lh"><span class="lnm">🧑‍🚀 ${n}</span>${status}</div>
       <div class="lbar"><i style="width:${pct}%"></i></div>
