@@ -115,7 +115,14 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 .bin{min-height:150px;padding:12px;border:1.5px dashed var(--panel-line);border-radius:14px;
   background:rgba(255,255,255,.02);transition:.18s;}
 .bin.over{border-color:var(--cyan);background:rgba(55,230,224,.08);transform:translateY(-2px);}
-.bin .blab{font-size:12px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.bin .blab{font-size:12px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.bin-del{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
+  line-height:1;padding:2px 5px;border-radius:6px;opacity:.5;transition:.12s;flex-shrink:0;}
+.bin-del:hover{opacity:1;color:var(--red);background:rgba(255,107,107,.12);}
+#exitPreview{position:fixed;top:14px;left:14px;z-index:56;font-family:var(--body);font-weight:700;
+  font-size:13px;cursor:pointer;border:1px solid var(--cyan);border-radius:11px;padding:9px 16px;
+  color:#06122a;background:var(--cyan);box-shadow:0 4px 18px rgba(55,230,224,.4);}
+#exitPreview:hover{transform:translateY(-1px);}
 .bin .slot{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
 .bin .slot .chip{width:88px;}
 .bin .slot .chip svg{width:60px;height:60px;}
@@ -236,6 +243,24 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 .sub-card .mb .mbc{display:flex;flex-wrap:wrap;gap:2px;}
 .sub-card .mb .mbc svg{width:20px;height:22px;}
 .empty{text-align:center;color:var(--text-dim);font-size:14px;padding:50px 20px;line-height:1.7;}
+
+/* ---- live student progress cards ---- */
+.live-card{background:var(--panel);border:1px solid var(--panel-line);border-radius:16px;
+  padding:14px 16px;backdrop-filter:blur(10px);animation:reveal .4s ease both;}
+.live-card .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.live-card .lnm{font-family:var(--display);font-size:14px;font-weight:700;}
+.live-card .lst{font-size:11px;padding:2px 9px;border-radius:8px;font-weight:500;}
+.live-card .lst.working{color:var(--amber);background:rgba(255,201,77,.12);}
+.live-card .lst.done{color:var(--green);background:rgba(93,255,166,.14);}
+.live-card .lbar{height:7px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-bottom:10px;}
+.live-card .lbar > i{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--cyan),var(--violet));transition:width .4s;}
+.live-card .lbins{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.live-card .lb{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:8px;padding:4px;min-height:42px;}
+.live-card .lb .lbl{font-size:8.5px;color:var(--text-dim);margin-bottom:2px;}
+.live-card .lb .lbc{display:flex;flex-wrap:wrap;gap:2px;}
+.live-card .lb .lbc svg{width:18px;height:20px;}
 .tally{background:var(--panel);border:1px solid var(--panel-line);border-radius:16px;
   padding:16px 20px;margin-bottom:18px;backdrop-filter:blur(10px);}
 .tally h4{font-family:var(--display);font-size:13px;margin-bottom:12px;color:var(--cyan);}
@@ -335,6 +360,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 <div id="stars"></div><div id="stars2"></div><div id="stars3"></div>
 
 <button class="sound" id="soundBtn" title="소리 켜기/끄기">🔊</button>
+<button id="exitPreview" class="hidden">↩ 관제소로 돌아가기</button>
 
 <!-- ===== ROCKET LAUNCH CINEMATIC ===== -->
 <div id="cinematic" class="hidden">
@@ -419,8 +445,22 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
   <div class="progress"><i id="progBar"></i></div>
 
+  <!-- LOBBY (대기실) -->
+  <div id="lobby">
+    <div class="panel reveal" style="text-align:center;">
+      <div style="font-size:48px;margin-bottom:6px;">🛸</div>
+      <h2 class="sec" style="justify-content:center;">행성 X-17 착륙 완료</h2>
+      <p style="font-size:14.5px;color:var(--text-dim);line-height:1.7;margin:10px 0 20px;">
+        다른 대원들이 모두 착륙하기를 기다리는 중입니다.<br>
+        모선 관제소(선생님)의 <b style="color:var(--cyan)">탐사 시작</b> 신호가 오면 임무가 시작됩니다.
+      </p>
+      <div class="waiting" style="font-size:14px;"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 대기 중…</div>
+      <div style="margin-top:18px;font-size:13px;color:var(--text-dim);">대원 <b id="lobbyName" style="color:var(--text);"></b> · 준비 완료 ✅</div>
+    </div>
+  </div>
+
   <!-- STAGE 1 -->
-  <div id="stage1">
+  <div id="stage1" class="hidden">
     <div class="panel reveal">
       <div class="banner info">
         🛰️ <b>단계 1 · 비지도학습</b> — 자료가 없습니다! 생명체들은 <b>색, 모양, 다리 수, 눈 개수, 촉수 수, 무늬, 뿔, 크기</b> 등 여러 특징을 가지고 있어요.
@@ -430,8 +470,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       <div class="pool" id="pool"></div>
 
       <div class="bins" id="bins">
-        <div class="bin" data-zone="A"><div class="blab">🧪 채집통 1</div><div class="slot"></div></div>
-        <div class="bin" data-zone="B"><div class="blab">🧪 채집통 2</div><div class="slot"></div></div>
+        <div class="bin" data-zone="A"><div class="blab"><span>🧪 채집통 1</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
+        <div class="bin" data-zone="B"><div class="blab"><span>🧪 채집통 2</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
       </div>
       <button class="btn ghost" id="addBin" style="margin-top:12px;">➕ 채집통 추가</button>
 
@@ -489,6 +529,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       <div class="ts" id="tStatus">대원들이 보고하면 분류가 실시간으로 자동 수신됩니다.</div>
     </div>
     <div class="t-controls">
+      <button class="btn ghost" id="tPreview">👁️ 학생 화면 미리보기</button>
       <button class="btn ghost" id="tRefresh">🔄 새로고침</button>
       <button class="btn ghost" id="tClear">🗑️ 전체 비우기</button>
     </div>
@@ -497,6 +538,29 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   <div class="banner info" id="noSbWarn" style="margin-bottom:18px;">
     💡 대원이 <b>보고하기</b>를 누르면 분류가 이 화면에 <b>자동으로</b> 나타납니다.
     여러 기기(학생 휴대폰·태블릿)에서 모으려면 함께 받은 <b>설정가이드</b>로 Supabase를 연결하세요.
+  </div>
+
+  <!-- 대기실: 탐사 시작 전 -->
+  <div class="tally" id="lobbyPanel" style="margin-bottom:18px;">
+    <h4>🚀 탐사 시작 준비</h4>
+    <p style="font-size:13.5px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">
+      착륙한 대원 <b id="arriveCount" style="color:var(--cyan);font-family:var(--display);">0</b>명이 대기실에서 기다리고 있습니다.
+      모두 모이면 아래 버튼을 눌러 비지도학습 임무를 시작하세요.
+    </p>
+    <div id="arriveList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
+    <button class="btn" id="tBegin">🚀 탐사 시작 · 대원들에게 단계 1 열기</button>
+  </div>
+
+  <!-- 참여 명단 (수업 내내 표시) -->
+  <div class="tally" id="rosterPanel" style="margin-bottom:18px;display:none;">
+    <h4>👥 참여 대원 (<span id="rosterCount">0</span>명)</h4>
+    <div id="rosterList" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+  </div>
+
+  <!-- 학생 실시간 진행 화면 -->
+  <div id="liveSection" style="display:none;margin-bottom:18px;">
+    <h2 class="sec" style="margin-bottom:12px;">📡 대원별 실시간 분류 현황</h2>
+    <div class="boards" id="liveBoards"></div>
   </div>
 
   <div class="tally" id="tally" style="display:none;">
@@ -509,9 +573,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
   <div class="boards" id="boards">
     <div class="empty" id="emptyMsg">
-      아직 보고한 대원이 없습니다. 🛸<br>
-      대원들이 단계 1을 마치고 <b>보고하기</b>를 누르면 여기에 자동으로 나타납니다.<br>
-      모두 모이면 함께 회의한 뒤 아래 버튼으로 다음 단계를 안내하세요.
+      대원들이 분류를 마치고 <b>보고하기</b>를 누르면 최종 결과가 여기에 나타납니다.<br>
+      그 전까지는 위쪽 <b>실시간 분류 현황</b>에서 각 대원이 어떻게 묶는지 지켜볼 수 있어요.
     </div>
   </div>
 
@@ -722,22 +785,60 @@ function bindDropZone(z){
 }
 document.querySelectorAll('.bin, .pool').forEach(bindDropZone);
 
-/* ---- add more collection bins (start at 2, add as needed) ---- */
+/* ---- add / remove collection bins (start at 2, min 2, max 8) ---- */
 const ALL_ZONES=['A','B','C','D','E','F','G','H'];
-document.getElementById('addBin').onclick=function(){
+const MIN_BINS=2;
+function relabelBins(){
+  const bins=[...document.querySelectorAll('#bins .bin')];
+  bins.forEach((bin,i)=>{
+    bin.dataset.zone=ALL_ZONES[i];
+    const span=bin.querySelector('.blab span');
+    if(span) span.textContent=`🧪 채집통 ${i+1}`;
+  });
+  /* show/hide add button based on capacity */
+  document.getElementById('addBin').style.display = bins.length>=ALL_ZONES.length ? 'none' : '';
+  /* disable delete when at minimum */
+  document.querySelectorAll('#bins .bin-del').forEach(b=>{
+    b.style.display = bins.length<=MIN_BINS ? 'none' : '';
+  });
+}
+function makeBin(){
   const bins=document.getElementById('bins');
-  const used=bins.querySelectorAll('.bin').length;
-  if(used>=ALL_ZONES.length){ this.style.display='none'; return; }
-  const z=ALL_ZONES[used];
+  const i=bins.querySelectorAll('.bin').length;
   const bin=document.createElement('div');
-  bin.className='bin'; bin.dataset.zone=z;
-  bin.innerHTML=`<div class="blab">🧪 채집통 ${used+1}</div><div class="slot"></div>`;
+  bin.className='bin'; bin.dataset.zone=ALL_ZONES[i];
+  bin.innerHTML=`<div class="blab"><span>🧪 채집통 ${i+1}</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div>`;
   bins.appendChild(bin);
   bindDropZone(bin);
+  bindDel(bin);
   bin.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'scale(1)'}],{duration:300,easing:'ease'});
+  return bin;
+}
+function bindDel(bin){
+  const btn=bin.querySelector('.bin-del');
+  if(!btn) return;
+  btn.onclick=(e)=>{
+    e.stopPropagation();
+    const bins=[...document.querySelectorAll('#bins .bin')];
+    if(bins.length<=MIN_BINS) return;
+    /* return any creatures inside back to the pool */
+    bin.querySelectorAll('.chip').forEach(ch=>pool.appendChild(ch));
+    bin.animate([{opacity:1},{opacity:0,transform:'scale(.85)'}],{duration:220,easing:'ease'}).onfinish=()=>{
+      bin.remove(); relabelBins(); updateBonus(); sendProgress();
+    };
+    beep(300,0.1,'sawtooth',0.05);
+  };
+}
+document.getElementById('addBin').onclick=function(){
+  const used=document.querySelectorAll('#bins .bin').length;
+  if(used>=ALL_ZONES.length) return;
+  makeBin();
+  relabelBins();
   beep(520,0.08,'sine',0.05);
-  if(used+1>=ALL_ZONES.length) this.style.display='none';
 };
+/* wire up the two initial bins' delete buttons + initial label state */
+document.querySelectorAll('#bins .bin').forEach(bindDel);
+relabelBins();
 function placeChip(zone,chip){
   const target=zone.classList.contains('bin')?zone.querySelector('.slot'):zone;
   target.appendChild(chip);
@@ -745,6 +846,37 @@ function placeChip(zone,chip){
   chip.classList.add('pop'); setTimeout(()=>chip.classList.remove('pop'),300);
   sDrop();
   updateBonus();
+  sendProgress();   /* live update to teacher */
+}
+
+/* read current grouping and send a lightweight progress snapshot */
+function currentOrder(){
+  const map={};
+  ZONES.forEach(z=>{
+    const slot=document.querySelector(`.bin[data-zone="${z}"] .slot`);
+    if(!slot) return;
+    slot.querySelectorAll('.chip').forEach(ch=>{
+      const idx=creatures.findIndex(c=>c.n===ch.querySelector('.cname').textContent);
+      if(idx>=0) map[idx]=z;
+    });
+  });
+  return creatures.map((_,i)=>map[i]||'-').join('');
+}
+let progressTimer=null;
+let DEMO_MODE=false;   /* teacher previewing the student screen — don't transmit */
+function sendProgress(){
+  if(!MY_NAME || DEMO_MODE) return;
+  /* throttle: send at most ~every 400ms */
+  if(progressTimer) return;
+  progressTimer=setTimeout(()=>{ progressTimer=null; }, 400);
+  const order=currentOrder();
+  const placed=order.split('').filter(c=>c!=='-').length;
+  const msg={type:'progress', name:MY_NAME, order, placed, total:creatures.length, done:false};
+  if(bc) bc.postMessage(msg);
+  if(sb){
+    const ch=sb.channel('progress-'+ROOM);
+    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'progress',payload:msg}); });
+  }
 }
 
 /* ---- touch drag fallback ---- */
@@ -802,6 +934,10 @@ function updateBonus(){
 
 /* ================= Stage transitions ================= */
 document.getElementById('submit1').onclick=function(){
+  if(DEMO_MODE){
+    alert('지금은 학생 화면 미리보기(시범) 모드입니다.\n실제 보고는 학생만 전송됩니다. 우측 상단 "관제소로 돌아가기"를 누르세요.');
+    return;
+  }
   setScore(bonus,true);
   sLaunch();
   progBar.style.width='40%';
@@ -820,6 +956,10 @@ document.getElementById('submit1').onclick=function(){
   sendReport(report);
   /* 2) Supabase for cross-device (if configured) */
   if(sb){ sb.from('submissions').insert({room:ROOM, name:MY_NAME, grouping:order}).then(()=>{}).catch(()=>{}); }
+  /* 3) mark progress as done so teacher's live card shows ✅ */
+  const doneMsg={type:'progress', name:MY_NAME, order, placed:creatures.length, total:creatures.length, done:true};
+  if(bc) bc.postMessage(doneMsg);
+  if(sb){ const ch=sb.channel('progress-'+ROOM); ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'progress',payload:doneMsg}); }); }
 
   document.getElementById('submit1').disabled=true;
   document.getElementById('submit1').style.display='none';
@@ -858,22 +998,42 @@ function sendReport(report){
 function sendStage2Signal(){
   if(bc) bc.postMessage({type:'open_stage2'});
 }
+function sendBeginSignal(){
+  if(bc) bc.postMessage({type:'begin'});
+}
 if(bc){
   bc.onmessage=e=>{
     const m=e.data||{};
-    if(m.type==='report' && document.getElementById('teacher').style.display==='block'){
+    const inTeacher=document.getElementById('teacher').style.display==='block';
+    if(m.type==='report' && inTeacher){
       addLocalSub(m.report); renderTeacher(); beep(660,0.08,'sine',0.05);
     }
-    if(m.type==='open_stage2'){ openStage2ForStudent(); }
-    if(m.type==='clear' && document.getElementById('teacher').style.display==='block'){
-      localSubs=[]; renderTeacher();
+    if(m.type==='arrive' && inTeacher){ addArrival(m.name); }
+    if(m.type==='progress' && inTeacher){ updateLive(m); }
+    if(m.type==='rollcall'){ /* teacher just joined; re-announce if I'm waiting */
+      if(!document.getElementById('lobby').classList.contains('hidden') && MY_NAME){
+        if(bc) bc.postMessage({type:'arrive', name:MY_NAME});
+      }
     }
+    if(m.type==='begin'){ beginExpedition(); }
+    if(m.type==='open_stage2'){ openStage2ForStudent(); }
+    if(m.type==='clear' && inTeacher){ localSubs=[]; liveMap={}; renderTeacher(); renderLive(); }
   };
 }
-/* Supabase realtime stage-2 signal for students */
+/* Supabase realtime signals */
 if(sb){
   sb.channel('signal-'+ROOM)
     .on('broadcast',{event:'open_stage2'},()=>openStage2ForStudent())
+    .on('broadcast',{event:'begin'},()=>beginExpedition())
+    .on('broadcast',{event:'rollcall'},()=>{
+      if(!document.getElementById('lobby').classList.contains('hidden') && MY_NAME){
+        const ch=sb.channel('lobby-'+ROOM);
+        ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'arrive',payload:{name:MY_NAME}}); });
+      }
+    })
+    .subscribe();
+  sb.channel('progress-'+ROOM)
+    .on('broadcast',{event:'progress'},payload=>{ if(document.getElementById('teacher').style.display==='block') updateLive(payload.payload); })
     .subscribe();
 }
 
@@ -948,6 +1108,53 @@ function getSubs(){ return localSubs; }
 function addLocalSub(s){
   if(!localSubs.some(x=>x.name===s.name && x.order===s.order)) localSubs.push({name:s.name, order:s.order});
 }
+/* ---- live student progress ---- */
+let liveMap={};   /* name -> {order, placed, total, done} */
+function updateLive(m){
+  if(!m || !m.name) return;
+  liveMap[m.name]={order:m.order, placed:m.placed, total:m.total, done:m.done};
+  /* live progress also counts as roster presence */
+  if(!arrivals.includes(m.name)){ arrivals.push(m.name); refreshRoster(); }
+  renderLive();
+}
+function liveBins(order){
+  let html='<div class="lbins">';
+  ['A','B','C','D','E','F','G','H'].forEach((z,zi)=>{
+    const items=[];
+    for(let i=0;i<order.length;i++){ if(order[i]===z) items.push(creatureSVG(creatures[i])); }
+    if(!items.length) return;
+    html+=`<div class="lb"><div class="lbl">통 ${zi+1}</div><div class="lbc">${items.join('')}</div></div>`;
+  });
+  return html+'</div>';
+}
+function renderLive(){
+  const wrap=document.getElementById('liveBoards');
+  const names=Object.keys(liveMap);
+  if(!names.length){ document.getElementById('liveSection').style.display='none'; return; }
+  document.getElementById('liveSection').style.display='block';
+  wrap.innerHTML=names.map(n=>{
+    const d=liveMap[n];
+    const pct=Math.round(d.placed/d.total*100);
+    const status=d.done?'<span class="lst done">✅ 보고 완료</span>':`<span class="lst working">분류 중 ${d.placed}/${d.total}</span>`;
+    return `<div class="live-card">
+      <div class="lh"><span class="lnm">🧑‍🚀 ${n}</span>${status}</div>
+      <div class="lbar"><i style="width:${pct}%"></i></div>
+      ${liveBins(d.order)}
+    </div>`;
+  }).join('');
+}
+function refreshRoster(){
+  const panel=document.getElementById('rosterPanel');
+  if(!arrivals.length){ panel.style.display='none'; return; }
+  panel.style.display='block';
+  document.getElementById('rosterCount').textContent=arrivals.length;
+  document.getElementById('rosterList').innerHTML=arrivals.map(n=>{
+    const reported=getSubs().some(s=>s.name===n) || (liveMap[n]&&liveMap[n].done);
+    const mark=reported?'✅':'🟡';
+    return `<span style="font-size:12.5px;background:rgba(255,255,255,.05);padding:4px 11px;border-radius:8px;">${mark} ${n}</span>`;
+  }).join('');
+}
+
 function miniBins(order){
   let html='<div class="mini-bins">';
   ['A','B','C','D','E','F','G','H'].forEach((z,zi)=>{
@@ -986,9 +1193,21 @@ function renderTeacher(){
   document.getElementById('tallyBars').innerHTML=bars;
   document.getElementById('tally').style.display='block';
   document.getElementById('tProceed').style.display='block';
+  refreshRoster();
 }
 
 /* set up teacher mode */
+let arrivals=[];
+function addArrival(name){
+  if(!name) return;
+  if(!arrivals.includes(name)) arrivals.push(name);
+  document.getElementById('arriveCount').textContent=arrivals.length;
+  document.getElementById('arriveList').innerHTML=arrivals.map(n=>
+    `<span style="font-size:12.5px;background:rgba(55,230,224,.1);color:var(--cyan);padding:4px 11px;border-radius:8px;">🧑‍🚀 ${n}</span>`
+  ).join('');
+  refreshRoster();
+  beep(620,0.07,'sine',0.05);
+}
 function initTeacher(){
   const status=document.getElementById('tStatus');
   if(sb){
@@ -999,8 +1218,17 @@ function initTeacher(){
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'submissions',filter:'room=eq.'+ROOM},
         payload=>{ addLocalSub({name:payload.new.name, order:payload.new.grouping}); renderTeacher(); beep(660,0.08,'sine',0.05); })
       .subscribe();
+    sb.channel('lobby-'+ROOM)
+      .on('broadcast',{event:'arrive'},payload=>addArrival(payload.payload?.name))
+      .subscribe();
   } else {
     status.textContent='같은 브라우저의 대원 탭에서 보고하면 자동으로 표시됩니다.';
+  }
+  /* roll call: ask any already-waiting students to re-announce */
+  if(bc) bc.postMessage({type:'rollcall'});
+  if(sb){
+    const ch=sb.channel('signal-'+ROOM);
+    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'rollcall',payload:{}}); });
   }
   renderTeacher();
 }
@@ -1010,12 +1238,49 @@ function loadSbSubs(){
 }
 
 document.getElementById('tRefresh').onclick=()=>{ if(sb){ localSubs=[]; loadSbSubs(); } else renderTeacher(); beep(500,0.08,'sine',0.05); };
+
+/* ---- teacher previews the student screen (demo only, nothing transmitted) ---- */
+document.getElementById('tPreview').onclick=function(){
+  DEMO_MODE=true;
+  MY_NAME='';  /* extra safety: no name = no transmit */
+  /* hide teacher, show student game directly at stage 1 */
+  document.getElementById('teacher').style.display='none';
+  const g=document.getElementById('game');
+  g.style.opacity=1; g.style.display='';
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('stage1').classList.remove('hidden');
+  document.getElementById('stage2').classList.add('hidden');
+  document.getElementById('result').classList.add('hidden');
+  document.getElementById('reportBox').classList.add('hidden');
+  document.getElementById('stagePill').textContent='👁️ 학생 화면 미리보기 (시범용)';
+  document.getElementById('exitPreview').classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+  beep(560,0.1,'sine',0.05);
+};
+document.getElementById('exitPreview').onclick=function(){
+  DEMO_MODE=false;
+  this.classList.add('hidden');
+  document.getElementById('game').style.display='none';
+  document.getElementById('teacher').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+  beep(440,0.1,'sine',0.05);
+};
 document.getElementById('tClear').onclick=function(){
   if(!confirm('보고된 모든 분류를 지울까요?')) return;
   localSubs=[];
   if(sb) sb.from('submissions').delete().eq('room',ROOM).then(()=>{});
   if(bc) bc.postMessage({type:'clear'});
   renderTeacher();
+};
+document.getElementById('tBegin').onclick=function(){
+  sendBeginSignal();  /* same-browser tabs */
+  if(sb){
+    const ch=sb.channel('signal-'+ROOM);
+    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'begin',payload:{}}); });
+  }
+  document.getElementById('lobbyPanel').style.display='none';
+  refreshRoster();   /* keep the roster visible through the lesson */
+  sWin();
 };
 document.getElementById('tProceed').onclick=function(){
   sendStage2Signal();  /* same-browser tabs */
@@ -1074,7 +1339,40 @@ function startStudent(){
     g.style.opacity=1;
     g.animate([{opacity:0},{opacity:1}],{duration:600,fill:'forwards'});
     progBar.style.width='4%';
+    /* show lobby, wait for teacher's "탐사 시작" signal */
+    document.getElementById('lobbyName').textContent=MY_NAME;
+    document.getElementById('stagePill').textContent='대기실 · 탐사 시작 대기 중';
+    /* announce arrival so teacher can count students */
+    announceArrival();
   });
+}
+/* student arrives in lobby → tell teacher (repeat so a late-joining teacher still counts them) */
+let arriveTimer=null;
+function announceArrival(){
+  const ping=()=>{
+    if(bc) bc.postMessage({type:'arrive', name:MY_NAME});
+    if(sb){
+      const ch=sb.channel('lobby-'+ROOM);
+      ch.subscribe(s=>{ if(s==='SUBSCRIBED'){ ch.send({type:'broadcast',event:'arrive',payload:{name:MY_NAME}}); } });
+    }
+  };
+  ping();
+  arriveTimer=setInterval(()=>{
+    if(document.getElementById('lobby').classList.contains('hidden')){ clearInterval(arriveTimer); return; }
+    ping();
+  }, 4000);
+}
+/* student receives "탐사 시작" → enter stage 1 */
+function beginExpedition(){
+  const lobby=document.getElementById('lobby');
+  if(!lobby || lobby.classList.contains('hidden')) return;
+  lobby.classList.add('fade-out');
+  setTimeout(()=>{
+    lobby.classList.add('hidden');
+    document.getElementById('stage1').classList.remove('hidden');
+    document.getElementById('stagePill').textContent='단계 1 / 2 · 자료 없는 분류';
+    sLaunch();
+  },550);
 }
 
 /* ---- rocket launch + landing cinematic ---- */
