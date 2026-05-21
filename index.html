@@ -904,12 +904,7 @@ function sendProgress(){
   progressTimer=setTimeout(()=>{ progressTimer=null; }, 400);
   const order=currentOrder();
   const placed=order.split('').filter(c=>c!=='-').length;
-  const msg={type:'progress', name:MY_NAME, order, placed, total:creatures.length, done:false};
-  if(bc) bc.postMessage(msg);
-  if(sb){
-    const ch=sb.channel('progress-'+ROOM);
-    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'progress',payload:msg}); });
-  }
+  emit({type:'progress', name:MY_NAME, order, placed, total:creatures.length, done:false});
 }
 
 /* ---- touch drag fallback ---- */
@@ -985,14 +980,12 @@ document.getElementById('submit1').onclick=function(){
   const order=creatures.map((_,i)=>binsMap[i]||'-').join('');
   const report={name:MY_NAME, order, t:Date.now()};
 
-  /* 1) same-browser channel (works across tabs, no setup) */
+  /* 1) broadcast the report (same-browser + cross-device via shared channel) */
   sendReport(report);
-  /* 2) Supabase for cross-device (if configured) */
+  /* 2) also persist to Supabase table so a late-joining teacher can load it */
   if(sb){ sb.from('submissions').insert({room:ROOM, name:MY_NAME, grouping:order}).then(()=>{}).catch(()=>{}); }
   /* 3) mark progress as done so teacher's live card shows ✅ */
-  const doneMsg={type:'progress', name:MY_NAME, order, placed:creatures.length, total:creatures.length, done:true};
-  if(bc) bc.postMessage(doneMsg);
-  if(sb){ const ch=sb.channel('progress-'+ROOM); ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'progress',payload:doneMsg}); }); }
+  emit({type:'progress', name:MY_NAME, order, placed:creatures.length, total:creatures.length, done:true});
 
   document.getElementById('submit1').disabled=true;
   document.getElementById('submit1').style.display='none';
@@ -1022,53 +1015,55 @@ function openStage2ForStudent(){
   }
 }
 
-/* ===== messaging: BroadcastChannel (same browser, no setup) + Supabase (cross-device) ===== */
+/* ===== messaging: BroadcastChannel (same browser) + Supabase (cross-device) ===== */
 let bc=null;
 try{ bc=new BroadcastChannel('x17-'+ROOM); }catch(e){ bc=null; }
-function sendReport(report){
-  if(bc) bc.postMessage({type:'report', report});
-}
-function sendStage2Signal(){
-  if(bc) bc.postMessage({type:'open_stage2'});
-}
-function sendBeginSignal(){
-  if(bc) bc.postMessage({type:'begin'});
-}
-if(bc){
-  bc.onmessage=e=>{
-    const m=e.data||{};
-    const inTeacher=document.getElementById('teacher').style.display==='block';
-    if(m.type==='report' && inTeacher){
-      addLocalSub(m.report); renderTeacher(); beep(660,0.08,'sine',0.05);
-    }
-    if(m.type==='arrive' && inTeacher){ addArrival(m.name); }
-    if(m.type==='progress' && inTeacher){ updateLive(m); }
-    if(m.type==='rollcall'){ /* teacher just joined; re-announce if I'm waiting */
-      if(!document.getElementById('lobby').classList.contains('hidden') && MY_NAME){
-        if(bc) bc.postMessage({type:'arrive', name:MY_NAME});
-      }
-    }
-    if(m.type==='begin'){ beginExpedition(); }
-    if(m.type==='open_stage2'){ openStage2ForStudent(); }
-    if(m.type==='clear' && inTeacher){ localSubs=[]; liveMap={}; renderTeacher(); renderLive(); }
-  };
-}
-/* Supabase realtime signals */
+
+/* one shared Supabase channel for ALL events — created once, reused for send & receive.
+   (creating a new channel per message was dropping progress updates) */
+let sbChannel=null, sbReady=false, sbQueue=[];
 if(sb){
-  sb.channel('signal-'+ROOM)
-    .on('broadcast',{event:'open_stage2'},()=>openStage2ForStudent())
-    .on('broadcast',{event:'begin'},()=>beginExpedition())
-    .on('broadcast',{event:'rollcall'},()=>{
-      if(!document.getElementById('lobby').classList.contains('hidden') && MY_NAME){
-        const ch=sb.channel('lobby-'+ROOM);
-        ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'arrive',payload:{name:MY_NAME}}); });
-      }
-    })
-    .subscribe();
-  sb.channel('progress-'+ROOM)
-    .on('broadcast',{event:'progress'},payload=>{ if(document.getElementById('teacher').style.display==='block') updateLive(payload.payload); })
-    .subscribe();
+  sbChannel=sb.channel('room-'+ROOM,{config:{broadcast:{self:false}}});
+  sbChannel.on('broadcast',{event:'msg'},payload=>handleMsg(payload.payload||{}));
+  sbChannel.subscribe(status=>{
+    if(status==='SUBSCRIBED'){ sbReady=true; sbQueue.forEach(m=>sbChannel.send({type:'broadcast',event:'msg',payload:m})); sbQueue=[]; }
+  });
 }
+/* unified send: goes to both same-browser tabs and cross-device peers */
+function emit(m){
+  if(bc) bc.postMessage(m);
+  if(sbChannel){
+    if(sbReady) sbChannel.send({type:'broadcast',event:'msg',payload:m});
+    else sbQueue.push(m);
+  }
+}
+/* unified receive handler */
+function handleMsg(m){
+  const inTeacher=document.getElementById('teacher').style.display==='block';
+  if(m.type==='report' && inTeacher){ addLocalSub(m.report); renderTeacher(); beep(660,0.08,'sine',0.05); }
+  if(m.type==='arrive' && inTeacher){ addArrival(m.name); }
+  if(m.type==='progress' && inTeacher){ updateLive(m); }
+  if(m.type==='rollcall'){
+    /* a teacher just joined — re-announce my presence and current progress */
+    if(MY_NAME && !document.getElementById('lobby').classList.contains('hidden')){
+      emit({type:'arrive', name:MY_NAME});
+    }
+    if(MY_NAME && !document.getElementById('stage1').classList.contains('hidden') && !DEMO_MODE){
+      const order=currentOrder();
+      const placed=order.split('').filter(c=>c!=='-').length;
+      emit({type:'progress', name:MY_NAME, order, placed, total:creatures.length, done:false});
+    }
+  }
+  if(m.type==='begin'){ beginExpedition(); }
+  if(m.type==='open_stage2'){ openStage2ForStudent(); }
+  if(m.type==='clear' && inTeacher){ localSubs=[]; liveMap={}; renderTeacher(); renderLive(); }
+}
+if(bc){ bc.onmessage=e=>handleMsg(e.data||{}); }
+
+function sendReport(report){ emit({type:'report', report}); }
+function sendStage2Signal(){ emit({type:'open_stage2'}); }
+function sendBeginSignal(){ emit({type:'begin'}); }
+
 
 /* ================= Stage 2 quiz ================= */
 const quizData=[
@@ -1283,22 +1278,16 @@ function initTeacher(){
     status.textContent='대원들이 보고하면 분류가 실시간으로 자동 수신됩니다. ✅';
     document.getElementById('noSbWarn').style.display='none';
     loadSbSubs();
+    /* also pick up DB inserts (covers a teacher who joins after a report was saved) */
     sb.channel('subs-'+ROOM)
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'submissions',filter:'room=eq.'+ROOM},
         payload=>{ addLocalSub({name:payload.new.name, order:payload.new.grouping}); renderTeacher(); beep(660,0.08,'sine',0.05); })
       .subscribe();
-    sb.channel('lobby-'+ROOM)
-      .on('broadcast',{event:'arrive'},payload=>addArrival(payload.payload?.name))
-      .subscribe();
   } else {
     status.textContent='같은 브라우저의 대원 탭에서 보고하면 자동으로 표시됩니다.';
   }
-  /* roll call: ask any already-waiting students to re-announce */
-  if(bc) bc.postMessage({type:'rollcall'});
-  if(sb){
-    const ch=sb.channel('signal-'+ROOM);
-    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'rollcall',payload:{}}); });
-  }
+  /* roll call: ask any already-waiting students to re-announce (arrive + progress) */
+  emit({type:'rollcall'});
   renderTeacher();
 }
 function loadSbSubs(){
@@ -1338,25 +1327,17 @@ document.getElementById('tClear').onclick=function(){
   if(!confirm('보고된 모든 분류를 지울까요?')) return;
   localSubs=[];
   if(sb) sb.from('submissions').delete().eq('room',ROOM).then(()=>{});
-  if(bc) bc.postMessage({type:'clear'});
+  emit({type:'clear'});
   renderTeacher();
 };
 document.getElementById('tBegin').onclick=function(){
-  sendBeginSignal();  /* same-browser tabs */
-  if(sb){
-    const ch=sb.channel('signal-'+ROOM);
-    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'begin',payload:{}}); });
-  }
+  sendBeginSignal();
   document.getElementById('lobbyPanel').style.display='none';
   refreshRoster();   /* keep the roster visible through the lesson */
   sWin();
 };
 document.getElementById('tProceed').onclick=function(){
-  sendStage2Signal();  /* same-browser tabs */
-  if(sb){
-    const ch=sb.channel('signal-'+ROOM);
-    ch.subscribe(s=>{ if(s==='SUBSCRIBED') ch.send({type:'broadcast',event:'open_stage2',payload:{}}); });
-  }
+  sendStage2Signal();
   this.textContent='📡 단계 2 공개 신호 전송됨! 대원들 화면에 버튼이 나타납니다';
   this.disabled=true; sWin();
 };
@@ -1418,13 +1399,7 @@ function startStudent(){
 /* student arrives in lobby → tell teacher (repeat so a late-joining teacher still counts them) */
 let arriveTimer=null;
 function announceArrival(){
-  const ping=()=>{
-    if(bc) bc.postMessage({type:'arrive', name:MY_NAME});
-    if(sb){
-      const ch=sb.channel('lobby-'+ROOM);
-      ch.subscribe(s=>{ if(s==='SUBSCRIBED'){ ch.send({type:'broadcast',event:'arrive',payload:{name:MY_NAME}}); } });
-    }
-  };
+  const ping=()=>emit({type:'arrive', name:MY_NAME});
   ping();
   arriveTimer=setInterval(()=>{
     if(document.getElementById('lobby').classList.contains('hidden')){ clearInterval(arriveTimer); return; }
