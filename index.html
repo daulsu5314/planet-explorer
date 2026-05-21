@@ -162,6 +162,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   border:1px solid var(--panel-line);background:rgba(255,255,255,.04);color:var(--text);
   transition:.13s;}
 .qbtn:hover{background:rgba(255,255,255,.1);}
+.qbtn.chosen{background:rgba(55,230,224,.16);border-color:var(--cyan);color:#d6fbff;}
 .qbtn.right{background:rgba(93,255,166,.2);border-color:var(--green);color:#d6ffe8;}
 .qbtn.wrong{background:rgba(255,107,107,.2);border-color:var(--red);color:#ffd6d6;}
 .qbtn:disabled{cursor:default;}
@@ -351,6 +352,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   background:radial-gradient(circle at 35% 30%, #7be0ff, #4a5bd6 45%, #2a1d6b 80%);
   box-shadow:0 0 50px rgba(120,150,255,.5), inset -10px -10px 30px rgba(0,0,0,.5);}
 .far-planet.approach{animation:approach 2.2s cubic-bezier(.5,0,.6,1) forwards;}
+.far-planet.earth{background:radial-gradient(circle at 38% 32%, #8fd6ff, #3a86c8 38%, #1f6e3a 62%, #15406b 85%);
+  box-shadow:0 0 55px rgba(110,200,255,.55), inset -12px -12px 32px rgba(0,0,0,.5);}
 @keyframes approach{
   0%{transform:translate(-50%,0) scale(.35);opacity:0;}
   25%{opacity:1;}
@@ -522,8 +525,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   <div id="stage2" class="hidden">
     <div class="panel reveal">
       <div class="banner ok">
-        🛰️ <b>단계 2 · 지도학습</b> — 모선이 분석 데이터를 전송했습니다! 아래 <b>식별 자료(정답표)</b>를 보고
-        새로 발견한 생명체를 분류하세요. 한 마리당 <b>+20점</b>.
+        🛰️ <b>단계 2 · 지도학습</b> — 모선이 <b>식별 자료(정답표)</b>를 보냈습니다! 정답표를 참고해 새 생명체를 분류하세요.
+        고른 답은 <b>제출 전까지 자유롭게 바꿀 수 있어요.</b> 다 고르면 <b>제출하기</b>를 눌러 채점합니다.
       </div>
       <h2 class="sec">📖 모선 식별 자료</h2>
       <div class="legend">
@@ -535,6 +538,13 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
       <h2 class="sec">🆕 새로 발견한 생명체</h2>
       <div id="quiz"></div>
+      <button class="btn" id="submitQuiz" disabled style="margin-top:16px;">📡 제출하기 (채점)</button>
+
+      <div class="report-box hidden" id="quizResult" style="margin-top:16px;">
+        <div class="rl qr-msg">채점 완료!</div>
+        <div class="hint">선생님이 모든 대원의 답을 함께 확인한 뒤, <b>탐사 종료</b> 신호를 보내면 임무가 끝납니다.</div>
+        <div class="waiting" id="quizWaiting"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 모선의 종료 신호를 기다리는 중…</div>
+      </div>
     </div>
   </div>
 
@@ -608,6 +618,20 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   </div>
 
   <button class="btn" id="tProceed" style="display:none;margin-top:22px;">✅ 회의 완료 · 대원들에게 단계 2(정답표) 공개</button>
+
+  <!-- 단계 2 현황 -->
+  <div id="stage2Panel" style="display:none;margin-top:22px;">
+    <div class="tally" style="margin-bottom:18px;">
+      <h4>📝 단계 2 (지도학습) 현황</h4>
+      <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">
+        대원들이 모선 정답표로 새 생명체를 분류하고 있어요. 각자 <b>제출</b>하면 점수가 표시됩니다.
+        모두 제출하면 함께 정답을 확인한 뒤 <b>탐사 종료</b>를 누르세요.
+      </p>
+      <div id="stage2List" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+    <button class="btn ghost" id="tShowAnswers" style="margin-bottom:14px;">📖 정답 함께 확인하기 (선생님용)</button>
+    <button class="btn" id="tEnd">🌍 탐사 종료 · 지구로 귀환</button>
+  </div>
 </div>
 
 <!-- ===== ZOOM MODAL (학생 결과 확대) ===== -->
@@ -1014,6 +1038,7 @@ function goStage2(){
     document.getElementById('stagePill').textContent='단계 2 / 2 · 정답표로 분류';
     window.scrollTo({top:0,behavior:'smooth'});
   },650);
+  if(MY_NAME && !DEMO_MODE) emit({type:'stage2done', name:MY_NAME, correct:null, total:quizData.length});
 }
 function openStage2ForStudent(){
   const b=document.getElementById('toStage2');
@@ -1064,9 +1089,13 @@ function handleMsg(m){
   }
   if(m.type==='begin'){ beginExpedition(); }
   if(m.type==='open_stage2'){ openStage2ForStudent(); }
-  if(m.type==='clear' && inTeacher){ localSubs=[]; liveMap={}; renderTeacher(); renderLive(); }
+  if(m.type==='stage2done' && inTeacher){ markStage2Done(m.name, m.correct, m.total); }
+  if(m.type==='end'){ endExpedition(); }
+  if(m.type==='clear' && inTeacher){ localSubs=[]; liveMap={}; stage2Done={}; renderTeacher(); renderLive(); }
 }
 if(bc){ bc.onmessage=e=>handleMsg(e.data||{}); }
+
+function sendEndSignal(){ emit({type:'end'}); }
 
 function sendReport(report){ emit({type:'report', report}); }
 function sendStage2Signal(){ emit({type:'open_stage2'}); }
@@ -1083,27 +1112,97 @@ const quizData=[
 ];
 const opts=["🔥 용암 생명체","💧 해저 생명체","⚡ 대기권 생명체"];
 const quiz=document.getElementById('quiz');
-let answered=0;
+let picks={};      /* row index -> chosen option (not yet graded) */
+let quizGraded=false;
 quizData.forEach((q,i)=>{
-  const row=document.createElement('div'); row.className='qrow';
+  const row=document.createElement('div'); row.className='qrow'; row.dataset.idx=i;
   const name=document.createElement('span'); name.className='qname'; name.textContent=q.a;
   row.appendChild(name);
   opts.forEach(o=>{
     const b=document.createElement('button'); b.className='qbtn'; b.textContent=o;
     b.onclick=()=>{
-      [...row.querySelectorAll('.qbtn')].forEach(x=>x.disabled=true);
-      if(o===q.correct){ b.classList.add('right'); setScore(score+20,true); sGood(); }
-      else{ b.classList.add('wrong'); sBad();
-        [...row.querySelectorAll('.qbtn')].forEach(x=>{if(x.textContent===q.correct)x.classList.add('right');});
-      }
-      answered++;
-      progBar.style.width=(50+answered/quizData.length*50)+'%';
-      if(answered===quizData.length) setTimeout(finish,700);
+      if(quizGraded) return;            /* locked after submit */
+      picks[i]=o;
+      /* highlight chosen, allow changing freely (no grading yet) */
+      [...row.querySelectorAll('.qbtn')].forEach(x=>x.classList.remove('chosen'));
+      b.classList.add('chosen');
+      sDrop();
+      updateQuizSubmit();
     };
     row.appendChild(b);
   });
   quiz.appendChild(row);
 });
+function updateQuizSubmit(){
+  const all=Object.keys(picks).length===quizData.length;
+  const btn=document.getElementById('submitQuiz');
+  if(btn) btn.disabled=!all;
+}
+/* student submits → grade now, show right/wrong */
+function gradeQuiz(){
+  if(quizGraded) return;
+  quizGraded=true;
+  let correctCnt=0;
+  document.querySelectorAll('#quiz .qrow').forEach(row=>{
+    const i=+row.dataset.idx, q=quizData[i];
+    [...row.querySelectorAll('.qbtn')].forEach(x=>{
+      x.disabled=true; x.classList.remove('chosen');
+      if(x.textContent===q.correct) x.classList.add('right');
+      if(x.textContent===picks[i] && picks[i]!==q.correct) x.classList.add('wrong');
+    });
+    if(picks[i]===q.correct){ correctCnt++; }
+  });
+  setScore(score + correctCnt*20, true);
+  progBar.style.width='100%';
+  correctCnt===quizData.length ? sWin() : sGood();
+  /* show summary + tell teacher this student finished stage 2 */
+  const box=document.getElementById('quizResult');
+  if(box){
+    box.classList.remove('hidden');
+    box.querySelector('.qr-msg').textContent=`${quizData.length}문제 중 ${correctCnt}문제 정답!`;
+  }
+  emit({type:'stage2done', name:MY_NAME, correct:correctCnt, total:quizData.length});
+}
+document.getElementById('submitQuiz').onclick=function(){
+  if(quizGraded || Object.keys(picks).length<quizData.length) return;
+  this.disabled=true; this.style.display='none';
+  gradeQuiz();
+  document.getElementById('quizResult').classList.remove('hidden');
+  document.getElementById('quizResult').scrollIntoView({behavior:'smooth',block:'center'});
+};
+
+/* ================= End expedition (return to Earth) ================= */
+let expeditionEnded=false;
+function endExpedition(){
+  if(expeditionEnded) return;
+  expeditionEnded=true;
+  /* play return-to-Earth cinematic, then show the result screen */
+  playReturnRocket(()=>{
+    /* hide whatever is showing (student game or teacher dashboard) */
+    document.getElementById('game').style.display='none';
+    document.getElementById('teacher').style.display='none';
+    document.getElementById('demoPanel') && (void 0);
+    const wrap=document.getElementById('game');
+    wrap.style.display='';
+    wrap.style.opacity=1;
+    document.getElementById('stage1').classList.add('hidden');
+    document.getElementById('stage2').classList.add('hidden');
+    document.getElementById('lobby').classList.add('hidden');
+    finishResult();
+  });
+}
+function finishResult(){
+  const r=document.getElementById('result'); r.classList.remove('hidden'); r.classList.add('reveal');
+  let rank,n;
+  if(score>=110){rank="🏅 전설의 탐사대장";n=3;}
+  else if(score>=80){rank="🚀 정식 탐사대원";n=2;}
+  else{rank="🔰 신참 탐사대원";n=1;}
+  document.getElementById('rank').textContent=rank;
+  document.getElementById('rStars').textContent='★'.repeat(n)+'☆'.repeat(3-n);
+  document.getElementById('fscore').textContent='최종 탐사 점수 '+Math.round(score)+'점';
+  sWin(); confettiBurst();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
 /* ================= Result ================= */
 function finish(){
@@ -1414,6 +1513,21 @@ document.getElementById('demoToggle').onclick=function(){
   m.style.display=hidden?'':'none';
   this.textContent=hidden?'접기 ▲':'펼치기 ▼';
 };
+
+/* teacher: reveal stage-2 answer key in the demo area for whole-class discussion */
+function showDemoAnswers(){
+  if(document.getElementById('demoAnswers')) return;
+  const panel=document.getElementById('demoPanel');
+  const box=document.createElement('div');
+  box.id='demoAnswers';
+  box.style.marginTop='16px';
+  const rows=quizData.map(q=>
+    `<div class="qrow"><span class="qname">${q.a}</span><span class="qbtn right" style="cursor:default;">${q.correct}</span></div>`
+  ).join('');
+  box.innerHTML=`<div class="banner ok" style="margin-bottom:12px;">📖 <b>단계 2 정답</b> — 학생들과 함께 하나씩 확인하세요. (모선 정답표 기준)</div>${rows}`;
+  panel.appendChild(box);
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+}
 function loadSbSubs(){
   sb.from('submissions').select('name,grouping').eq('room',ROOM).order('created_at',{ascending:true})
     .then(({data})=>{ if(data){ data.forEach(d=>addLocalSub({name:d.name, order:d.grouping})); renderTeacher(); } });
@@ -1437,8 +1551,42 @@ document.getElementById('tBegin').onclick=function(){
 };
 document.getElementById('tProceed').onclick=function(){
   sendStage2Signal();
-  this.textContent='📡 단계 2 공개 신호 전송됨! 대원들 화면에 버튼이 나타납니다';
+  this.textContent='📡 단계 2 공개됨 · 대원들이 정답표로 분류 중입니다';
   this.disabled=true; sWin();
+  document.getElementById('stage2Panel').style.display='block';
+};
+
+/* ---- stage 2 progress tracking on teacher side ---- */
+let stage2Done={};   /* name -> {correct, total} | {correct:null} = still solving */
+function markStage2Done(name, correct, total){
+  if(!name) return;
+  stage2Done[name]={correct, total};
+  renderStage2List();
+  if(correct!==null) beep(700,0.08,'sine',0.05);
+}
+function renderStage2List(){
+  const wrap=document.getElementById('stage2List');
+  if(!wrap) return;
+  const names=Object.keys(stage2Done);
+  if(!names.length){ wrap.innerHTML='<span style="font-size:12.5px;color:var(--text-dim);">아직 단계 2에 들어온 대원이 없습니다.</span>'; return; }
+  wrap.innerHTML=names.map(n=>{
+    const d=stage2Done[n];
+    if(d.correct===null) return `<span style="font-size:12.5px;background:rgba(255,201,77,.12);color:var(--amber);padding:4px 11px;border-radius:8px;">🧑‍🚀 ${n} · 푸는 중…</span>`;
+    return `<span style="font-size:12.5px;background:rgba(93,255,166,.14);color:var(--green);padding:4px 11px;border-radius:8px;">✅ ${n} · ${d.correct}/${d.total}</span>`;
+  }).join('');
+}
+/* teacher reveals answers on the demo board (fills in correct answers for discussion) */
+document.getElementById('tShowAnswers').onclick=function(){
+  showDemoAnswers();
+  this.textContent='✅ 정답 표시됨 (위 시범 화면에서 확인)';
+  this.disabled=true;
+  document.getElementById('demoPanel').scrollIntoView({behavior:'smooth',block:'start'});
+};
+/* teacher ends the expedition for everyone */
+document.getElementById('tEnd').onclick=function(){
+  if(!confirm('탐사를 종료할까요? 모든 대원의 화면이 지구 귀환 화면으로 전환됩니다.')) return;
+  sendEndSignal();   /* same-browser + cross-device */
+  endExpedition();   /* end on teacher screen too */
 };
 
 
@@ -1585,6 +1733,51 @@ function playRocket(done){
   setTimeout(()=>{
     cine.classList.add('hidden');
     document.getElementById('landingFlash').classList.remove('flash');
+    done && done();
+  },3500);
+}
+
+/* ---- return-to-Earth cinematic (expedition end) ---- */
+function playReturnRocket(done){
+  const cine=document.getElementById('cinematic');
+  const cs=document.getElementById('cineStars');
+  cs.innerHTML='';
+  for(let i=0;i<70;i++){
+    const s=document.createElement('div'); s.className='star';
+    const sz=Math.random()*2+0.6;
+    s.style.width=s.style.height=sz+'px';
+    s.style.left=Math.random()*100+'%';
+    s.style.top=Math.random()*100+'%';
+    s.style.animationDelay=(Math.random()*1)+'s';
+    cs.appendChild(s);
+  }
+  cine.classList.remove('hidden');
+  const rocket=document.getElementById('rocket');
+  const planet=document.getElementById('farPlanet');
+  const cap=document.getElementById('cineCap');
+  rocket.classList.remove('liftoff'); planet.classList.remove('approach'); cine.classList.remove('warp');
+  planet.classList.add('earth');   /* it's Earth this time */
+  void rocket.offsetWidth;
+  cap.textContent='임무 완료 · 귀환 준비…';
+  if(soundOn){ beep(90,0.6,'sawtooth',0.06); setTimeout(()=>beep(140,1.2,'sawtooth',0.05),300); }
+  setTimeout(()=>{
+    rocket.classList.add('liftoff');
+    planet.classList.add('approach');
+    cine.classList.add('warp');
+    cap.textContent='🌍 지구로 돌아가는 중…';
+    if(soundOn){ for(let i=0;i<6;i++) setTimeout(()=>beep(500-i*40,0.3,'sine',0.04), 400+i*250); }
+  },500);
+  setTimeout(()=>{ cap.textContent='대기권 진입…'; },2100);
+  setTimeout(()=>{
+    const flash=document.getElementById('landingFlash');
+    flash.classList.add('flash');
+    if(soundOn) beep(220,0.4,'triangle',0.07);
+    cap.textContent='지구 귀환 완료! 🌍';
+  },2900);
+  setTimeout(()=>{
+    cine.classList.add('hidden');
+    document.getElementById('landingFlash').classList.remove('flash');
+    planet.classList.remove('earth');
     done && done();
   },3500);
 }
