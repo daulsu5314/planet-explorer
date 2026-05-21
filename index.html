@@ -424,18 +424,16 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
     <div class="panel reveal">
       <div class="banner info">
         🛰️ <b>단계 1 · 비지도학습</b> — 자료가 없습니다! 생명체들은 <b>색, 모양, 다리 수, 눈 개수, 촉수 수, 무늬, 뿔, 크기</b> 등 여러 특징을 가지고 있어요.
-        무엇을 기준으로 묶을지는 대원의 선택! 채집통은 5개, 꼭 다 쓰지 않아도 됩니다. 같은 종류가 한 통에 모일수록 <b>발견 보너스</b>가 쌓입니다.
+        무엇을 기준으로 묶을지는 대원의 선택! 채집통은 <b>추가</b> 버튼으로 필요한 만큼 늘릴 수 있어요. 같은 종류가 한 통에 모일수록 <b>발견 보너스</b>가 쌓입니다.
       </div>
       <h2 class="sec">🔬 미확인 생명체 (15)</h2>
       <div class="pool" id="pool"></div>
 
-      <div class="bins">
+      <div class="bins" id="bins">
         <div class="bin" data-zone="A"><div class="blab">🧪 채집통 1</div><div class="slot"></div></div>
         <div class="bin" data-zone="B"><div class="blab">🧪 채집통 2</div><div class="slot"></div></div>
-        <div class="bin" data-zone="C"><div class="blab">🧪 채집통 3</div><div class="slot"></div></div>
-        <div class="bin" data-zone="D"><div class="blab">🧪 채집통 4</div><div class="slot"></div></div>
-        <div class="bin" data-zone="E"><div class="blab">🧪 채집통 5</div><div class="slot"></div></div>
       </div>
+      <button class="btn ghost" id="addBin" style="margin-top:12px;">➕ 채집통 추가</button>
 
       <div class="bonusline" id="bonusLine">발견 보너스: <b>0</b>점 · 15마리를 모두 채집통에 넣고 보고하세요.</div>
       <button class="btn" id="submit1" disabled>📡 단계 1 모선에 보고하기</button>
@@ -704,9 +702,16 @@ function makeChip(o){
   d.addEventListener('touchstart',touchStart,{passive:false});
   return d;
 }
-creatures.forEach(o=>pool.appendChild(makeChip(o)));
+/* shuffle display order so creatures look scattered, not color-sorted.
+   (data index is preserved via creature name lookup, so grouping stays correct) */
+function shuffled(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+shuffled(creatures).forEach(o=>pool.appendChild(makeChip(o)));
 
-document.querySelectorAll('.bin, .pool').forEach(z=>{
+function bindDropZone(z){
   z.addEventListener('dragover',e=>{e.preventDefault(); z.classList.add('over');});
   z.addEventListener('dragleave',()=>z.classList.remove('over'));
   z.addEventListener('drop',e=>{
@@ -714,7 +719,25 @@ document.querySelectorAll('.bin, .pool').forEach(z=>{
     if(!dragged) return;
     placeChip(z,dragged);
   });
-});
+}
+document.querySelectorAll('.bin, .pool').forEach(bindDropZone);
+
+/* ---- add more collection bins (start at 2, add as needed) ---- */
+const ALL_ZONES=['A','B','C','D','E','F','G','H'];
+document.getElementById('addBin').onclick=function(){
+  const bins=document.getElementById('bins');
+  const used=bins.querySelectorAll('.bin').length;
+  if(used>=ALL_ZONES.length){ this.style.display='none'; return; }
+  const z=ALL_ZONES[used];
+  const bin=document.createElement('div');
+  bin.className='bin'; bin.dataset.zone=z;
+  bin.innerHTML=`<div class="blab">🧪 채집통 ${used+1}</div><div class="slot"></div>`;
+  bins.appendChild(bin);
+  bindDropZone(bin);
+  bin.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'scale(1)'}],{duration:300,easing:'ease'});
+  beep(520,0.08,'sine',0.05);
+  if(used+1>=ALL_ZONES.length) this.style.display='none';
+};
 function placeChip(zone,chip){
   const target=zone.classList.contains('bin')?zone.querySelector('.slot'):zone;
   target.appendChild(chip);
@@ -759,11 +782,12 @@ function touchEnd(e){
   document.removeEventListener('touchend',touchEnd);
 }
 
-const ZONES=['A','B','C','D','E'];
+const ZONES=ALL_ZONES;
 function updateBonus(){
   let total=0;
   ZONES.forEach(z=>{
     const slot=document.querySelector(`.bin[data-zone="${z}"] .slot`);
+    if(!slot) return;
     const chips=[...slot.children]; if(chips.length<2) return;
     const cnt={}; chips.forEach(ch=>cnt[ch.dataset.c]=(cnt[ch.dataset.c]||0)+1);
     total+=(Math.max(...Object.values(cnt))-1)*10;
@@ -926,7 +950,7 @@ function addLocalSub(s){
 }
 function miniBins(order){
   let html='<div class="mini-bins">';
-  ['A','B','C','D','E'].forEach((z,zi)=>{
+  ['A','B','C','D','E','F','G','H'].forEach((z,zi)=>{
     const items=[];
     for(let i=0;i<order.length;i++){ if(order[i]===z) items.push(creatureSVG(creatures[i])); }
     if(!items.length) return;  /* skip empty bins to save space */
