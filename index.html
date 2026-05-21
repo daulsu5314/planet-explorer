@@ -264,6 +264,9 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 .sub-card .crit{font-size:11px;color:var(--text-dim);background:rgba(255,255,255,.06);
   padding:2px 8px;border-radius:8px;font-weight:500;white-space:nowrap;}
 .sub-card .crit.top{color:var(--cyan);background:rgba(55,230,224,.14);}
+.sub-card .crit.hint{color:var(--text-dim);background:rgba(255,255,255,.06);}
+.cscore-toggle-wrap{margin-bottom:16px;}
+.cscore-toggle-wrap .btn{margin-top:0;}
 .sub-card .mini-bins{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px;}
 .sub-card .mb{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
   border-radius:9px;padding:5px;min-height:50px;}
@@ -1207,12 +1210,23 @@ function openZoom(name, order){
   const bars=scores.filter(x=>x.pct>0).map((x,i)=>
     `<div class="cscore-row"><span class="csl">${x.label}</span><span class="cst"><i class="${i===0?'top':''}" style="width:${x.pct}%"></i></span><span class="csn">${x.pct}%</span></div>`
   ).join('');
-  const critBox=`<div class="cscore">
-    <div class="cscore-h">이 분류는 여러 기준으로 설명될 수 있어요 (적합도)</div>
-    ${bars}
-    <div class="cscore-note">👉 한 가지 정답이 있는 게 아니라, 같은 묶음도 여러 특징으로 볼 수 있습니다.</div>
+  /* hidden until teacher clicks — keeps discussion open ("why did they group this way?") */
+  const critBox=`<div class="cscore-toggle-wrap">
+    <button class="btn ghost" id="critToggle">🔍 적합도 확인하기 (이 분류가 어떤 기준에 맞는지)</button>
+    <div class="cscore" id="cscoreBox" style="display:none;margin-top:14px;">
+      <div class="cscore-h">이 분류는 여러 기준으로 설명될 수 있어요 (적합도)</div>
+      ${bars}
+      <div class="cscore-note">👉 한 가지 정답이 있는 게 아니라, 같은 묶음도 여러 특징으로 볼 수 있습니다.</div>
+    </div>
   </div>`;
   document.getElementById('zoomBody').innerHTML=critBox+zoomBinsHTML(order);
+  document.getElementById('critToggle').onclick=function(){
+    const box=document.getElementById('cscoreBox');
+    const open=box.style.display!=='none';
+    box.style.display=open?'none':'block';
+    this.textContent=open?'🔍 적합도 확인하기 (이 분류가 어떤 기준에 맞는지)':'🙈 적합도 숨기기';
+    if(!open) beep(560,0.08,'sine',0.05);
+  };
   document.getElementById('zoomModal').classList.remove('hidden');
   beep(560,0.08,'sine',0.05);
 }
@@ -1256,12 +1270,8 @@ function renderTeacher(){
   empty.style.display='none';
   boards.querySelectorAll('.sub-card').forEach(c=>c.remove());
   subs.forEach(s=>{
-    const scores=criterionScores(s.order);
-    const tops=scores.filter(x=>x.pct>=60).slice(0,3);
-    const badges=(tops.length?tops:scores.slice(0,1)).map((x,i)=>
-      `<span class="crit${i===0?' top':''}">${x.label} ${x.pct}%</span>`).join('');
     const card=document.createElement('div'); card.className='sub-card';
-    card.innerHTML=`<div class="nm">🧑‍🚀 ${s.name}<span class="crit-wrap">${badges}</span></div>`+miniBins(s.order);
+    card.innerHTML=`<div class="nm">🧑‍🚀 ${s.name}<span class="crit-wrap"><span class="crit hint">🔍 눌러서 분류 확인</span></span></div>`+miniBins(s.order);
     card.onclick=()=>openZoom(s.name, s.order);
     boards.appendChild(card);
   });
