@@ -648,10 +648,10 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
 <script>
 /* ================= Sound (WebAudio, no files) ================= */
-let soundOn=true, actx=null;
+let soundOn=true, actx=null, isStudent=false;
 function ac(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); return actx; }
 function beep(freq,dur,type,vol){
-  if(!soundOn) return;
+  if(!soundOn || isStudent) return;   /* students stay silent */
   try{
     const c=ac(), o=c.createOscillator(), g=c.createGain();
     o.type=type||'sine'; o.frequency.value=freq;
@@ -1560,47 +1560,85 @@ function showDemoAnswers(){
   const opts=["🔥 용암 생명체","💧 해저 생명체","⚡ 대기권 생명체"];
   const rows=quizData.map((q,i)=>
     `<div class="qrow" data-idx="${i}"><span class="qname">${q.a}</span>`+
-    opts.map(o=>`<button class="qbtn demo-q">${o}</button>`).join('')+
+    opts.map(o=>`<button class="qbtn demo-q${o===q.correct?' right':''}">${o}</button>`).join('')+
     `</div>`
   ).join('');
-  box.innerHTML=`<div class="banner ok" style="margin-bottom:12px;">📖 <b>단계 2 · 학생들에게 보이는 화면 (시범용)</b> — 학생들과 함께 하나씩 골라보세요. 다 고르면 <b>정답 확인</b>을 눌러 채점합니다. (시범용이라 학생 점수엔 반영되지 않아요)</div>
-    ${rows}
-    <button class="btn" id="demoGrade" disabled style="margin-top:14px;">✅ 정답 확인</button>`;
+  box.innerHTML=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+      <div class="banner ok" style="flex:1;min-width:240px;margin:0;">📖 <b>단계 2 · 학생들에게 보이는 화면 (정답 표시)</b> — 새 생명체의 정답이 <b style="color:var(--green)">초록색</b>으로 표시돼 있어요. 학생들과 함께 하나씩 확인하세요.</div>
+      <button class="btn ghost" id="demoSolveToggle" style="width:auto;margin:0;padding:8px 14px;font-size:12.5px;white-space:nowrap;">✏️ 정답 가리고 직접 풀기</button>
+    </div>
+    <h2 class="sec" style="margin-top:4px;">📖 모선 식별 자료</h2>
+    <div class="legend">
+      <div class="lc fire"><div class="t">🔥 용암 생명체</div><div class="e">🦎 🐲</div></div>
+      <div class="lc water"><div class="t">💧 해저 생명체</div><div class="e">🐙 🦑</div></div>
+      <div class="lc air"><div class="t">⚡ 대기권 생명체</div><div class="e">🦇 🦅</div></div>
+    </div>
+    <div class="cap">↑ 정답이 붙은 학습 데이터</div>
+    <h2 class="sec">🆕 새로 발견한 생명체</h2>
+    ${rows}`;
   const endBtn=document.getElementById('tEnd');
-  panel.insertBefore(box, endBtn);   /* place right above the end button, where the teacher is looking */
-  /* interactive: pick (changeable) then grade */
-  const dpicks={}; let dgraded=false;
-  box.querySelectorAll('.qrow').forEach(row=>{
-    const i=+row.dataset.idx;
-    row.querySelectorAll('.demo-q').forEach(b=>{
-      b.onclick=()=>{
-        if(dgraded) return;
-        dpicks[i]=b.textContent;
-        row.querySelectorAll('.demo-q').forEach(x=>x.classList.remove('chosen'));
-        b.classList.add('chosen');
-        sDrop();
-        document.getElementById('demoGrade').disabled = Object.keys(dpicks).length<quizData.length;
-      };
-    });
-  });
-  document.getElementById('demoGrade').onclick=function(){
-    if(dgraded || Object.keys(dpicks).length<quizData.length) return;
-    dgraded=true; this.disabled=true; this.style.display='none';
-    let cc=0;
+  panel.insertBefore(box, endBtn);
+
+  let solveMode=false, dgraded=false, dpicks={};
+  function setupSolve(){
+    /* hide answers, let teacher pick + grade */
+    dgraded=false; dpicks={};
+    box.querySelectorAll('.demo-q').forEach(x=>{ x.classList.remove('right','wrong','chosen'); x.disabled=false; });
     box.querySelectorAll('.qrow').forEach(row=>{
-      const i=+row.dataset.idx, q=quizData[i];
-      row.querySelectorAll('.demo-q').forEach(x=>{
-        x.disabled=true; x.classList.remove('chosen');
-        if(x.textContent===q.correct) x.classList.add('right');
-        if(x.textContent===dpicks[i] && dpicks[i]!==q.correct) x.classList.add('wrong');
+      const i=+row.dataset.idx;
+      row.querySelectorAll('.demo-q').forEach(b=>{
+        b.onclick=()=>{
+          if(dgraded) return;
+          dpicks[i]=b.textContent;
+          row.querySelectorAll('.demo-q').forEach(x=>x.classList.remove('chosen'));
+          b.classList.add('chosen'); sDrop();
+          const gb=document.getElementById('demoGrade');
+          if(gb) gb.disabled = Object.keys(dpicks).length<quizData.length;
+        };
       });
-      if(dpicks[i]===q.correct) cc++;
     });
-    cc===quizData.length ? sWin() : sGood();
-    const msg=document.createElement('div');
-    msg.className='banner ok'; msg.style.marginTop='12px';
-    msg.innerHTML=`🎉 <b>${quizData.length}문제 중 ${cc}문제 정답!</b> 학생들 답과 비교해 보세요.`;
-    box.appendChild(msg);
+  }
+  document.getElementById('demoSolveToggle').onclick=function(){
+    solveMode=!solveMode;
+    const old=document.getElementById('demoGrade'); if(old) old.remove();
+    const oldMsg=box.querySelector('.demo-result'); if(oldMsg) oldMsg.remove();
+    if(solveMode){
+      this.textContent='📖 정답 다시 보기';
+      setupSolve();
+      const gb=document.createElement('button');
+      gb.className='btn'; gb.id='demoGrade'; gb.disabled=true; gb.style.marginTop='14px';
+      gb.textContent='✅ 정답 확인';
+      box.appendChild(gb);
+      gb.onclick=function(){
+        if(dgraded || Object.keys(dpicks).length<quizData.length) return;
+        dgraded=true; this.disabled=true; this.style.display='none';
+        let cc=0;
+        box.querySelectorAll('.qrow').forEach(row=>{
+          const i=+row.dataset.idx, q=quizData[i];
+          row.querySelectorAll('.demo-q').forEach(x=>{
+            x.disabled=true; x.classList.remove('chosen');
+            if(x.textContent===q.correct) x.classList.add('right');
+            if(x.textContent===dpicks[i] && dpicks[i]!==q.correct) x.classList.add('wrong');
+          });
+          if(dpicks[i]===q.correct) cc++;
+        });
+        cc===quizData.length ? sWin() : sGood();
+        const msg=document.createElement('div');
+        msg.className='banner ok demo-result'; msg.style.marginTop='12px';
+        msg.innerHTML=`🎉 <b>${quizData.length}문제 중 ${cc}문제 정답!</b>`;
+        box.appendChild(msg);
+      };
+    } else {
+      /* back to answer-shown mode */
+      this.textContent='✏️ 정답 가리고 직접 풀기';
+      box.querySelectorAll('.qrow').forEach(row=>{
+        const i=+row.dataset.idx, q=quizData[i];
+        row.querySelectorAll('.demo-q').forEach(x=>{
+          x.classList.remove('wrong','chosen'); x.disabled=false; x.onclick=null;
+          x.classList.toggle('right', x.textContent===q.correct);
+        });
+      });
+    }
   };
 }
 function loadSbSubs(){
@@ -1722,6 +1760,9 @@ function criterionScores(order){
 /* ================= Intro: role selection ================= */
 document.getElementById('roleStudent').onclick=function(){
   ac();
+  isStudent=true;
+  soundOn=false;   /* keep student devices silent in the classroom */
+  document.getElementById('soundBtn').style.display='none';
   document.getElementById('rolePick').style.display='none';
   document.getElementById('nameModal').classList.remove('hidden');
   setTimeout(()=>document.getElementById('nameInput').focus(),100);
