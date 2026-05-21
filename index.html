@@ -629,7 +629,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       </p>
       <div id="stage2List" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
-    <button class="btn ghost" id="tShowAnswers" style="margin-bottom:14px;">📖 선생님도 직접 풀어보기</button>
+    <button class="btn ghost" id="tShowAnswers" style="margin-bottom:14px;display:none;">📖 선생님도 직접 풀어보기</button>
     <button class="btn" id="tEnd">🌍 탐사 종료 · 지구로 귀환</button>
   </div>
 </div>
@@ -1563,7 +1563,7 @@ function showDemoAnswers(){
     opts.map(o=>`<button class="qbtn demo-q">${o}</button>`).join('')+
     `</div>`
   ).join('');
-  box.innerHTML=`<div class="banner ok" style="margin-bottom:12px;">📖 <b>단계 2 · 선생님도 직접 풀어보기</b> — 학생들과 함께 하나씩 골라보세요. 다 고르면 <b>정답 확인</b>을 누르면 채점됩니다.</div>
+  box.innerHTML=`<div class="banner ok" style="margin-bottom:12px;">📖 <b>단계 2 · 학생들에게 보이는 화면 (시범용)</b> — 학생들과 함께 하나씩 골라보세요. 다 고르면 <b>정답 확인</b>을 눌러 채점합니다. (시범용이라 학생 점수엔 반영되지 않아요)</div>
     ${rows}
     <button class="btn" id="demoGrade" disabled style="margin-top:14px;">✅ 정답 확인</button>`;
   const endBtn=document.getElementById('tEnd');
@@ -1629,6 +1629,8 @@ document.getElementById('tProceed').onclick=function(){
   this.textContent='✅ 2단계 시작됨 · 대원들이 정답표로 분류 중';
   this.disabled=true; sWin();
   document.getElementById('stage2Panel').style.display='block';
+  document.getElementById('tShowAnswers').style.display='none';  /* no button — show it directly */
+  showDemoAnswers();   /* student stage-2 screen appears on teacher view right away */
 };
 
 /* ---- stage 2 progress tracking on teacher side ---- */
