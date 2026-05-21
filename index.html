@@ -1263,16 +1263,35 @@ function renderTeacher(){
 
 /* set up teacher mode */
 let arrivals=[];
+let lastSeen={};      /* name -> last heartbeat timestamp (while in lobby) */
+let expeditionBegun=false;   /* once true, stop pruning (students stop pinging) */
 function addArrival(name){
   if(!name) return;
-  if(!arrivals.includes(name)) arrivals.push(name);
+  lastSeen[name]=Date.now();
+  if(!arrivals.includes(name)){ arrivals.push(name); beep(620,0.07,'sine',0.05); }
+  renderArrivals();
+  refreshRoster();
+}
+function renderArrivals(){
   document.getElementById('arriveCount').textContent=arrivals.length;
   document.getElementById('arriveList').innerHTML=arrivals.map(n=>
     `<span style="font-size:12.5px;background:rgba(55,230,224,.1);color:var(--cyan);padding:4px 11px;border-radius:8px;">🧑‍🚀 ${n}</span>`
   ).join('');
-  refreshRoster();
-  beep(620,0.07,'sine',0.05);
 }
+/* prune students whose heartbeat stopped (closed their window) — only before expedition begins */
+function pruneArrivals(){
+  if(expeditionBegun) return;
+  const now=Date.now(), TIMEOUT=10000;  /* 10s without a ping = gone */
+  let changed=false;
+  arrivals=arrivals.filter(n=>{
+    /* keep anyone who already reported or has live progress */
+    if(getSubs().some(s=>s.name===n) || liveMap[n]) return true;
+    if(now-(lastSeen[n]||0) > TIMEOUT){ delete lastSeen[n]; changed=true; return false; }
+    return true;
+  });
+  if(changed){ renderArrivals(); refreshRoster(); }
+}
+setInterval(pruneArrivals, 3000);
 function initTeacher(){
   const status=document.getElementById('tStatus');
   if(sb){
@@ -1297,17 +1316,19 @@ let demoBuilt=false;
 function buildDemo(){
   if(demoBuilt) return; demoBuilt=true;
   const mount=document.getElementById('demoMount');
-  /* build a self-contained classification board */
   const board=document.createElement('div');
   board.innerHTML=`
     <div class="pool" id="demoPool" style="min-height:90px;"></div>
     <div class="bins" id="demoBins">
-      <div class="bin" data-zone="A"><div class="blab"><span>🧪 채집통 1</span></div><div class="slot"></div></div>
-      <div class="bin" data-zone="B"><div class="blab"><span>🧪 채집통 2</span></div><div class="slot"></div></div>
-    </div>`;
+      <div class="bin" data-zone="A"><div class="blab"><span>🧪 채집통 1</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
+      <div class="bin" data-zone="B"><div class="blab"><span>🧪 채집통 2</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
+    </div>
+    <button class="btn ghost" id="demoAddBin" style="margin-top:12px;">➕ 채집통 추가</button>`;
   mount.appendChild(board);
   const dpool=board.querySelector('#demoPool');
+  const dbins=board.querySelector('#demoBins');
   let ddrag=null;
+
   /* demo chips */
   shuffled(creatures).forEach(o=>{
     const d=document.createElement('div');
@@ -1317,7 +1338,8 @@ function buildDemo(){
     d.addEventListener('dragend',()=>{ddrag=null; d.classList.remove('drag');});
     dpool.appendChild(d);
   });
-  board.querySelectorAll('.bin, #demoPool').forEach(z=>{
+
+  function bindDemoZone(z){
     z.addEventListener('dragover',e=>{e.preventDefault(); z.classList.add('over');});
     z.addEventListener('dragleave',()=>z.classList.remove('over'));
     z.addEventListener('drop',e=>{
@@ -1328,7 +1350,45 @@ function buildDemo(){
       ddrag.classList.add('pop'); setTimeout(()=>ddrag&&ddrag.classList.remove('pop'),300);
       sDrop();
     });
-  });
+  }
+  function relabelDemo(){
+    const bins=[...dbins.querySelectorAll('.bin')];
+    bins.forEach((bin,i)=>{
+      bin.dataset.zone=ALL_ZONES[i];
+      const span=bin.querySelector('.blab span');
+      if(span) span.textContent=`🧪 채집통 ${i+1}`;
+    });
+    board.querySelector('#demoAddBin').style.display = bins.length>=ALL_ZONES.length ? 'none' : '';
+    dbins.querySelectorAll('.bin-del').forEach(b=>{ b.style.display = bins.length<=MIN_BINS ? 'none' : ''; });
+  }
+  function bindDemoDel(bin){
+    const btn=bin.querySelector('.bin-del');
+    if(!btn) return;
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      if(dbins.querySelectorAll('.bin').length<=MIN_BINS) return;
+      bin.querySelectorAll('.chip').forEach(ch=>dpool.appendChild(ch));
+      bin.animate([{opacity:1},{opacity:0,transform:'scale(.85)'}],{duration:220,easing:'ease'}).onfinish=()=>{
+        bin.remove(); relabelDemo();
+      };
+      beep(300,0.1,'sawtooth',0.05);
+    };
+  }
+  board.querySelector('#demoAddBin').onclick=function(){
+    const i=dbins.querySelectorAll('.bin').length;
+    if(i>=ALL_ZONES.length) return;
+    const bin=document.createElement('div');
+    bin.className='bin'; bin.dataset.zone=ALL_ZONES[i];
+    bin.innerHTML=`<div class="blab"><span>🧪 채집통 ${i+1}</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div>`;
+    dbins.appendChild(bin);
+    bindDemoZone(bin); bindDemoDel(bin); relabelDemo();
+    bin.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'scale(1)'}],{duration:300,easing:'ease'});
+    beep(520,0.08,'sine',0.05);
+  };
+
+  dpool && bindDemoZone(dpool);
+  dbins.querySelectorAll('.bin').forEach(b=>{ bindDemoZone(b); bindDemoDel(b); });
+  relabelDemo();
 }
 document.getElementById('demoToggle').onclick=function(){
   const m=document.getElementById('demoMount');
@@ -1351,6 +1411,7 @@ document.getElementById('tClear').onclick=function(){
   renderTeacher();
 };
 document.getElementById('tBegin').onclick=function(){
+  expeditionBegun=true;   /* stop pruning — students now classify and stop pinging */
   sendBeginSignal();
   document.getElementById('lobbyPanel').style.display='none';
   refreshRoster();   /* keep the roster visible through the lesson */
