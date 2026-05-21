@@ -220,6 +220,25 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   text-align:center;margin-bottom:16px;outline:none;}
 .modal input:focus{border-color:var(--cyan);}
 
+/* ---- zoom modal (학생 결과 확대) ---- */
+.zoom-box{width:100%;max-width:760px;max-height:88vh;overflow-y:auto;position:relative;
+  background:var(--panel);border:1px solid var(--panel-line);border-radius:20px;
+  padding:24px 26px;box-shadow:0 24px 70px rgba(0,0,0,.6);animation:reveal .3s ease both;}
+.zoom-close{position:absolute;top:16px;right:18px;background:transparent;border:none;
+  color:var(--text-dim);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px;}
+.zoom-close:hover{color:var(--text);background:rgba(255,255,255,.08);}
+.zoom-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding-right:30px;}
+.zoom-name{font-family:var(--display);font-size:20px;font-weight:700;}
+.zoom-bins{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
+.zoom-bin{background:rgba(255,255,255,.03);border:1px solid var(--panel-line);
+  border-radius:14px;padding:12px;}
+.zoom-bin .zbl{font-size:13px;color:var(--text-dim);margin-bottom:10px;font-weight:500;}
+.zoom-bin .zbc{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
+.zoom-bin .zc{display:flex;flex-direction:column;align-items:center;width:72px;}
+.zoom-bin .zc svg{width:56px;height:60px;}
+.zoom-bin .zc span{font-size:11px;color:var(--text);margin-top:2px;}
+.zoom-empty{font-size:13px;color:var(--text-tertiary,#7a86b6);text-align:center;padding:8px;}
+
 /* ---- teacher dashboard ---- */
 #teacher{max-width:1100px;padding-top:30px;}
 .t-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
@@ -231,7 +250,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 .t-controls button{width:auto;margin-top:0;padding:10px 16px;font-size:13px;}
 .boards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
 .sub-card{background:var(--panel);border:1px solid var(--panel-line);border-radius:16px;
-  padding:16px;backdrop-filter:blur(10px);animation:reveal .4s ease both;}
+  padding:16px;backdrop-filter:blur(10px);animation:reveal .4s ease both;cursor:pointer;transition:.15s;}
+.sub-card:hover{border-color:var(--cyan);transform:translateY(-2px);box-shadow:0 8px 28px rgba(55,230,224,.18);}
 .sub-card .nm{font-family:var(--display);font-size:14px;font-weight:700;margin-bottom:4px;
   display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .sub-card .crit{font-size:11.5px;color:var(--cyan);background:rgba(55,230,224,.1);
@@ -246,7 +266,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
 /* ---- live student progress cards ---- */
 .live-card{background:var(--panel);border:1px solid var(--panel-line);border-radius:16px;
-  padding:14px 16px;backdrop-filter:blur(10px);animation:reveal .4s ease both;}
+  padding:14px 16px;backdrop-filter:blur(10px);animation:reveal .4s ease both;cursor:pointer;transition:.15s;}
+.live-card:hover{border-color:var(--cyan);transform:translateY(-2px);box-shadow:0 8px 28px rgba(55,230,224,.18);}
 .live-card .lh{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
 .live-card .lnm{font-family:var(--display);font-size:14px;font-weight:700;}
 .live-card .lst{font-size:11px;padding:2px 9px;border-radius:8px;font-weight:500;}
@@ -579,6 +600,18 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   </div>
 
   <button class="btn" id="tProceed" style="display:none;margin-top:22px;">✅ 회의 완료 · 대원들에게 단계 2(정답표) 공개</button>
+</div>
+
+<!-- ===== ZOOM MODAL (학생 결과 확대) ===== -->
+<div class="modal-bg hidden" id="zoomModal">
+  <div class="zoom-box">
+    <button class="zoom-close" id="zoomClose" aria-label="닫기">✕</button>
+    <div class="zoom-head">
+      <span class="zoom-name" id="zoomName"></span>
+      <span class="crit" id="zoomCrit"></span>
+    </div>
+    <div id="zoomBody"></div>
+  </div>
 </div>
 
 <script>
@@ -1136,13 +1169,48 @@ function renderLive(){
     const d=liveMap[n];
     const pct=Math.round(d.placed/d.total*100);
     const status=d.done?'<span class="lst done">✅ 보고 완료</span>':`<span class="lst working">분류 중 ${d.placed}/${d.total}</span>`;
-    return `<div class="live-card">
+    return `<div class="live-card" data-name="${encodeURIComponent(n)}" data-order="${d.order}">
       <div class="lh"><span class="lnm">🧑‍🚀 ${n}</span>${status}</div>
       <div class="lbar"><i style="width:${pct}%"></i></div>
       ${liveBins(d.order)}
     </div>`;
   }).join('');
+  wrap.querySelectorAll('.live-card').forEach(c=>{
+    c.onclick=()=>openZoom(decodeURIComponent(c.dataset.name), c.dataset.order);
+  });
 }
+
+/* ---- zoom: enlarge a student's grouping ---- */
+function zoomBinsHTML(order){
+  let html='<div class="zoom-bins">';
+  let any=false;
+  ['A','B','C','D','E','F','G','H'].forEach((z,zi)=>{
+    const items=[];
+    for(let i=0;i<order.length;i++){
+      if(order[i]===z) items.push(`<div class="zc">${creatureSVG(creatures[i])}<span>${creatures[i].n}</span></div>`);
+    }
+    if(!items.length) return;
+    any=true;
+    html+=`<div class="zoom-bin"><div class="zbl">🧪 채집통 ${zi+1} · ${items.length}마리</div><div class="zbc">${items.join('')}</div></div>`;
+  });
+  html+='</div>';
+  if(!any) html='<div class="zoom-empty">아직 채집통에 넣은 생명체가 없습니다.</div>';
+  return html;
+}
+function openZoom(name, order){
+  document.getElementById('zoomName').textContent='🧑‍🚀 '+name;
+  const crit=inferCriterion(order);
+  const placed=order.split('').filter(c=>c!=='-').length;
+  document.getElementById('zoomCrit').textContent=`${crit} 기준 · ${placed}/${creatures.length}마리 분류`;
+  document.getElementById('zoomBody').innerHTML=zoomBinsHTML(order);
+  document.getElementById('zoomModal').classList.remove('hidden');
+  beep(560,0.08,'sine',0.05);
+}
+function closeZoom(){ document.getElementById('zoomModal').classList.add('hidden'); }
+document.getElementById('zoomClose').onclick=closeZoom;
+document.getElementById('zoomModal').onclick=(e)=>{ if(e.target.id==='zoomModal') closeZoom(); };
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeZoom(); });
+
 function refreshRoster(){
   const panel=document.getElementById('rosterPanel');
   if(!arrivals.length){ panel.style.display='none'; return; }
@@ -1182,6 +1250,7 @@ function renderTeacher(){
     const crit=inferCriterion(s.order);
     const card=document.createElement('div'); card.className='sub-card';
     card.innerHTML=`<div class="nm">🧑‍🚀 ${s.name}<span class="crit">${crit} 기준</span></div>`+miniBins(s.order);
+    card.onclick=()=>openZoom(s.name, s.order);
     boards.appendChild(card);
   });
   const counts={};
