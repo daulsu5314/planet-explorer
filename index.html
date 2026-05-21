@@ -617,7 +617,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
     </div>
   </div>
 
-  <button class="btn" id="tProceed" style="display:none;margin-top:22px;">✅ 회의 완료 · 대원들에게 단계 2(정답표) 공개</button>
+  <button class="btn" id="tProceed" style="display:none;margin-top:22px;">2단계 시작</button>
 
   <!-- 단계 2 현황 -->
   <div id="stage2Panel" style="display:none;margin-top:22px;">
@@ -629,7 +629,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       </p>
       <div id="stage2List" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
-    <button class="btn ghost" id="tShowAnswers" style="margin-bottom:14px;">📖 정답 함께 확인하기 (선생님용)</button>
+    <button class="btn ghost" id="tShowAnswers" style="margin-bottom:14px;">📖 선생님도 직접 풀어보기</button>
     <button class="btn" id="tEnd">🌍 탐사 종료 · 지구로 귀환</button>
   </div>
 </div>
@@ -1176,12 +1176,19 @@ let expeditionEnded=false;
 function endExpedition(){
   if(expeditionEnded) return;
   expeditionEnded=true;
-  /* play return-to-Earth cinematic, then show the result screen */
+  const isTeacher=document.getElementById('teacher').style.display==='block';
+  /* play return-to-Earth cinematic, then: teacher → back to dashboard summary, student → own result */
   playReturnRocket(()=>{
-    /* hide whatever is showing (student game or teacher dashboard) */
-    document.getElementById('game').style.display='none';
+    if(isTeacher){
+      /* teacher stays on the dashboard and sees each student's result */
+      document.getElementById('teacher').style.display='block';
+      document.getElementById('game').style.display='none';
+      showTeacherSummary();
+      window.scrollTo({top:0,behavior:'smooth'});
+      return;
+    }
+    /* student → own result screen */
     document.getElementById('teacher').style.display='none';
-    document.getElementById('demoPanel') && (void 0);
     const wrap=document.getElementById('game');
     wrap.style.display='';
     wrap.style.opacity=1;
@@ -1190,6 +1197,43 @@ function endExpedition(){
     document.getElementById('lobby').classList.add('hidden');
     finishResult();
   });
+}
+/* teacher's end-of-lesson summary: each student's score/rank */
+function showTeacherSummary(){
+  const panel=document.getElementById('stage2Panel');
+  if(document.getElementById('teacherSummary')) return;
+  const box=document.createElement('div');
+  box.id='teacherSummary';
+  box.className='tally';
+  box.style.marginTop='18px';
+  const names=Object.keys(stage2Done);
+  const rankOf=(c,total)=>{
+    const sc=(c||0)*20 + 60;  /* approx: stage1 bonus + stage2 */
+    if(c===total) return ['🏅 전설의 탐사대장',3];
+    if(c>=Math.ceil(total*0.6)) return ['🚀 정식 탐사대원',2];
+    return ['🔰 신참 탐사대원',1];
+  };
+  let rows;
+  if(!names.length){
+    rows='<p style="font-size:13px;color:var(--text-dim);">제출한 대원이 없습니다.</p>';
+  } else {
+    rows=names.map(n=>{
+      const d=stage2Done[n];
+      if(d.correct===null) return `<div class="bar-row"><span class="bl">🧑‍🚀 ${n}</span><span class="bn" style="color:var(--amber);">미제출</span></div>`;
+      const [rank,star]=rankOf(d.correct,d.total);
+      return `<div class="bar-row"><span class="bl">🧑‍🚀 ${n}</span><span style="flex:1;font-size:12.5px;color:var(--text-dim);text-align:center;">${'★'.repeat(star)}${'☆'.repeat(3-star)} ${rank}</span><span class="bn">${d.correct}/${d.total}</span></div>`;
+    }).join('');
+  }
+  box.innerHTML=`<h4>🌍 탐사 종료 · 대원별 결과</h4>
+    <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">모든 대원이 지구로 귀환했습니다. 각 대원이 단계 2에서 받은 결과예요.</p>
+    ${rows}
+    <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;line-height:1.6;">👉 학생들 각자의 화면에는 등급·점수·개념 정리가 담긴 결과 화면이 떠 있습니다.</p>`;
+  panel.appendChild(box);
+  /* tidy the dashboard: hide the now-finished controls */
+  document.getElementById('tShowAnswers').style.display='none';
+  document.getElementById('tEnd').style.display='none';
+  box.scrollIntoView({behavior:'smooth',block:'start'});
+  confettiBurst();
 }
 function finishResult(){
   const r=document.getElementById('result'); r.classList.remove('hidden'); r.classList.add('reveal');
@@ -1521,11 +1565,50 @@ function showDemoAnswers(){
   const box=document.createElement('div');
   box.id='demoAnswers';
   box.style.marginTop='16px';
-  const rows=quizData.map(q=>
-    `<div class="qrow"><span class="qname">${q.a}</span><span class="qbtn right" style="cursor:default;">${q.correct}</span></div>`
+  const opts=["🔥 용암 생명체","💧 해저 생명체","⚡ 대기권 생명체"];
+  const rows=quizData.map((q,i)=>
+    `<div class="qrow" data-idx="${i}"><span class="qname">${q.a}</span>`+
+    opts.map(o=>`<button class="qbtn demo-q">${o}</button>`).join('')+
+    `</div>`
   ).join('');
-  box.innerHTML=`<div class="banner ok" style="margin-bottom:12px;">📖 <b>단계 2 정답</b> — 학생들과 함께 하나씩 확인하세요. (모선 정답표 기준)</div>${rows}`;
+  box.innerHTML=`<div class="banner ok" style="margin-bottom:12px;">📖 <b>단계 2 · 선생님도 직접 풀어보기</b> — 학생들과 함께 하나씩 골라보세요. 다 고르면 <b>정답 확인</b>을 누르면 채점됩니다.</div>
+    ${rows}
+    <button class="btn" id="demoGrade" disabled style="margin-top:14px;">✅ 정답 확인</button>`;
   panel.appendChild(box);
+  /* interactive: pick (changeable) then grade */
+  const dpicks={}; let dgraded=false;
+  box.querySelectorAll('.qrow').forEach(row=>{
+    const i=+row.dataset.idx;
+    row.querySelectorAll('.demo-q').forEach(b=>{
+      b.onclick=()=>{
+        if(dgraded) return;
+        dpicks[i]=b.textContent;
+        row.querySelectorAll('.demo-q').forEach(x=>x.classList.remove('chosen'));
+        b.classList.add('chosen');
+        sDrop();
+        document.getElementById('demoGrade').disabled = Object.keys(dpicks).length<quizData.length;
+      };
+    });
+  });
+  document.getElementById('demoGrade').onclick=function(){
+    if(dgraded || Object.keys(dpicks).length<quizData.length) return;
+    dgraded=true; this.disabled=true; this.style.display='none';
+    let cc=0;
+    box.querySelectorAll('.qrow').forEach(row=>{
+      const i=+row.dataset.idx, q=quizData[i];
+      row.querySelectorAll('.demo-q').forEach(x=>{
+        x.disabled=true; x.classList.remove('chosen');
+        if(x.textContent===q.correct) x.classList.add('right');
+        if(x.textContent===dpicks[i] && dpicks[i]!==q.correct) x.classList.add('wrong');
+      });
+      if(dpicks[i]===q.correct) cc++;
+    });
+    cc===quizData.length ? sWin() : sGood();
+    const msg=document.createElement('div');
+    msg.className='banner ok'; msg.style.marginTop='12px';
+    msg.innerHTML=`🎉 <b>${quizData.length}문제 중 ${cc}문제 정답!</b> 학생들 답과 비교해 보세요.`;
+    box.appendChild(msg);
+  };
   box.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function loadSbSubs(){
@@ -1551,7 +1634,7 @@ document.getElementById('tBegin').onclick=function(){
 };
 document.getElementById('tProceed').onclick=function(){
   sendStage2Signal();
-  this.textContent='📡 단계 2 공개됨 · 대원들이 정답표로 분류 중입니다';
+  this.textContent='✅ 2단계 시작됨 · 대원들이 정답표로 분류 중';
   this.disabled=true; sWin();
   document.getElementById('stage2Panel').style.display='block';
 };
@@ -1578,7 +1661,7 @@ function renderStage2List(){
 /* teacher reveals answers on the demo board (fills in correct answers for discussion) */
 document.getElementById('tShowAnswers').onclick=function(){
   showDemoAnswers();
-  this.textContent='✅ 정답 표시됨 (위 시범 화면에서 확인)';
+  this.textContent='✏️ 풀이 화면 열림 (위 시범 화면에서 직접 풀어보세요)';
   this.disabled=true;
   document.getElementById('demoPanel').scrollIntoView({behavior:'smooth',block:'start'});
 };
