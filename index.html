@@ -119,10 +119,6 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 .bin-del{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;
   line-height:1;padding:2px 5px;border-radius:6px;opacity:.5;transition:.12s;flex-shrink:0;}
 .bin-del:hover{opacity:1;color:var(--red);background:rgba(255,107,107,.12);}
-#exitPreview{position:fixed;top:14px;left:14px;z-index:56;font-family:var(--body);font-weight:700;
-  font-size:13px;cursor:pointer;border:1px solid var(--cyan);border-radius:11px;padding:9px 16px;
-  color:#06122a;background:var(--cyan);box-shadow:0 4px 18px rgba(55,230,224,.4);}
-#exitPreview:hover{transform:translateY(-1px);}
 .bin .slot{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
 .bin .slot .chip{width:88px;}
 .bin .slot .chip svg{width:60px;height:60px;}
@@ -381,7 +377,6 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 <div id="stars"></div><div id="stars2"></div><div id="stars3"></div>
 
 <button class="sound" id="soundBtn" title="소리 켜기/끄기">🔊</button>
-<button id="exitPreview" class="hidden">↩ 관제소로 돌아가기</button>
 
 <!-- ===== ROCKET LAUNCH CINEMATIC ===== -->
 <div id="cinematic" class="hidden">
@@ -550,15 +545,21 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       <div class="ts" id="tStatus">대원들이 보고하면 분류가 실시간으로 자동 수신됩니다.</div>
     </div>
     <div class="t-controls">
-      <button class="btn ghost" id="tPreview">👁️ 학생 화면 미리보기</button>
       <button class="btn ghost" id="tRefresh">🔄 새로고침</button>
       <button class="btn ghost" id="tClear">🗑️ 전체 비우기</button>
     </div>
   </div>
 
-  <div class="banner info" id="noSbWarn" style="margin-bottom:18px;">
-    💡 대원이 <b>보고하기</b>를 누르면 분류가 이 화면에 <b>자동으로</b> 나타납니다.
-    여러 기기(학생 휴대폰·태블릿)에서 모으려면 함께 받은 <b>설정가이드</b>로 Supabase를 연결하세요.
+  <!-- 학생들에게 보이는 화면 (시범용 미니뷰) -->
+  <div class="tally" id="demoPanel" style="margin-bottom:18px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">
+      <h4 style="margin:0;">👁️ 학생들에게 보이는 화면 (시범용)</h4>
+      <button class="btn ghost" id="demoToggle" style="width:auto;margin:0;padding:6px 12px;font-size:12px;">접기 ▲</button>
+    </div>
+    <p style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">
+      학생들이 단계 1에서 보게 될 화면입니다. 여기서 직접 끌어다 옮기며 시범을 보여줄 수 있어요. (시범용이라 실제 집계엔 반영되지 않습니다)
+    </p>
+    <div id="demoMount"></div>
   </div>
 
   <!-- 대기실: 탐사 시작 전 -->
@@ -1276,7 +1277,6 @@ function initTeacher(){
   const status=document.getElementById('tStatus');
   if(sb){
     status.textContent='대원들이 보고하면 분류가 실시간으로 자동 수신됩니다. ✅';
-    document.getElementById('noSbWarn').style.display='none';
     loadSbSubs();
     /* also pick up DB inserts (covers a teacher who joins after a report was saved) */
     sb.channel('subs-'+ROOM)
@@ -1289,7 +1289,53 @@ function initTeacher(){
   /* roll call: ask any already-waiting students to re-announce (arrive + progress) */
   emit({type:'rollcall'});
   renderTeacher();
+  buildDemo();
 }
+
+/* ---- demo mini-board inside teacher view (always visible, no transmit) ---- */
+let demoBuilt=false;
+function buildDemo(){
+  if(demoBuilt) return; demoBuilt=true;
+  const mount=document.getElementById('demoMount');
+  /* build a self-contained classification board */
+  const board=document.createElement('div');
+  board.innerHTML=`
+    <div class="pool" id="demoPool" style="min-height:90px;"></div>
+    <div class="bins" id="demoBins">
+      <div class="bin" data-zone="A"><div class="blab"><span>🧪 채집통 1</span></div><div class="slot"></div></div>
+      <div class="bin" data-zone="B"><div class="blab"><span>🧪 채집통 2</span></div><div class="slot"></div></div>
+    </div>`;
+  mount.appendChild(board);
+  const dpool=board.querySelector('#demoPool');
+  let ddrag=null;
+  /* demo chips */
+  shuffled(creatures).forEach(o=>{
+    const d=document.createElement('div');
+    d.className='chip'; d.innerHTML=creatureSVG(o)+`<div class="cname">${o.n}</div>`;
+    d.draggable=true;
+    d.addEventListener('dragstart',()=>{ddrag=d; d.classList.add('drag');});
+    d.addEventListener('dragend',()=>{ddrag=null; d.classList.remove('drag');});
+    dpool.appendChild(d);
+  });
+  board.querySelectorAll('.bin, #demoPool').forEach(z=>{
+    z.addEventListener('dragover',e=>{e.preventDefault(); z.classList.add('over');});
+    z.addEventListener('dragleave',()=>z.classList.remove('over'));
+    z.addEventListener('drop',e=>{
+      e.preventDefault(); z.classList.remove('over');
+      if(!ddrag) return;
+      const target=z.classList.contains('bin')?z.querySelector('.slot'):z;
+      target.appendChild(ddrag); ddrag.classList.remove('drag');
+      ddrag.classList.add('pop'); setTimeout(()=>ddrag&&ddrag.classList.remove('pop'),300);
+      sDrop();
+    });
+  });
+}
+document.getElementById('demoToggle').onclick=function(){
+  const m=document.getElementById('demoMount');
+  const hidden=m.style.display==='none';
+  m.style.display=hidden?'':'none';
+  this.textContent=hidden?'접기 ▲':'펼치기 ▼';
+};
 function loadSbSubs(){
   sb.from('submissions').select('name,grouping').eq('room',ROOM).order('created_at',{ascending:true})
     .then(({data})=>{ if(data){ data.forEach(d=>addLocalSub({name:d.name, order:d.grouping})); renderTeacher(); } });
@@ -1297,32 +1343,6 @@ function loadSbSubs(){
 
 document.getElementById('tRefresh').onclick=()=>{ if(sb){ localSubs=[]; loadSbSubs(); } else renderTeacher(); beep(500,0.08,'sine',0.05); };
 
-/* ---- teacher previews the student screen (demo only, nothing transmitted) ---- */
-document.getElementById('tPreview').onclick=function(){
-  DEMO_MODE=true;
-  MY_NAME='';  /* extra safety: no name = no transmit */
-  /* hide teacher, show student game directly at stage 1 */
-  document.getElementById('teacher').style.display='none';
-  const g=document.getElementById('game');
-  g.style.opacity=1; g.style.display='';
-  document.getElementById('lobby').classList.add('hidden');
-  document.getElementById('stage1').classList.remove('hidden');
-  document.getElementById('stage2').classList.add('hidden');
-  document.getElementById('result').classList.add('hidden');
-  document.getElementById('reportBox').classList.add('hidden');
-  document.getElementById('stagePill').textContent='👁️ 학생 화면 미리보기 (시범용)';
-  document.getElementById('exitPreview').classList.remove('hidden');
-  window.scrollTo({top:0,behavior:'smooth'});
-  beep(560,0.1,'sine',0.05);
-};
-document.getElementById('exitPreview').onclick=function(){
-  DEMO_MODE=false;
-  this.classList.add('hidden');
-  document.getElementById('game').style.display='none';
-  document.getElementById('teacher').style.display='block';
-  window.scrollTo({top:0,behavior:'smooth'});
-  beep(440,0.1,'sine',0.05);
-};
 document.getElementById('tClear').onclick=function(){
   if(!confirm('보고된 모든 분류를 지울까요?')) return;
   localSubs=[];
@@ -1475,10 +1495,12 @@ function tryTeacherLogin(){
   if(v===TEACHER_PASSWORD){
     document.getElementById('pwModal').classList.add('hidden');
     document.getElementById('intro').classList.add('fade-out');
-    const t=document.getElementById('teacher');
-    t.style.display='block';
-    t.animate([{opacity:0},{opacity:1}],{duration:700,fill:'forwards'});
-    initTeacher();
+    playRocket(()=>{
+      const t=document.getElementById('teacher');
+      t.style.display='block';
+      t.animate([{opacity:0},{opacity:1}],{duration:600,fill:'forwards'});
+      initTeacher();
+    });
   } else {
     document.getElementById('pwErr').style.display='block';
     document.getElementById('pwInput').value='';
