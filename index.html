@@ -506,6 +506,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       <div class="bins" id="bins">
         <div class="bin" data-zone="A"><div class="blab"><span>🧪 채집통 1</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
         <div class="bin" data-zone="B"><div class="blab"><span>🧪 채집통 2</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
+        <div class="bin" data-zone="C"><div class="blab"><span>🧪 채집통 3</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
       </div>
       <button class="btn ghost" id="addBin" style="margin-top:12px;">➕ 채집통 추가</button>
 
@@ -852,7 +853,7 @@ document.querySelectorAll('.bin, .pool').forEach(bindDropZone);
 
 /* ---- add / remove collection bins (start at 2, min 2, max 8) ---- */
 const ALL_ZONES=['A','B','C','D','E','F','G','H'];
-const MIN_BINS=2;
+const MIN_BINS=3;
 function relabelBins(){
   const bins=[...document.querySelectorAll('#bins .bin')];
   bins.forEach((bin,i)=>{
@@ -1466,6 +1467,7 @@ function buildDemo(){
     <div class="bins" id="demoBins">
       <div class="bin" data-zone="A"><div class="blab"><span>🧪 채집통 1</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
       <div class="bin" data-zone="B"><div class="blab"><span>🧪 채집통 2</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
+      <div class="bin" data-zone="C"><div class="blab"><span>🧪 채집통 3</span><button class="bin-del" title="채집통 삭제">✕</button></div><div class="slot"></div></div>
     </div>
     <button class="btn ghost" id="demoAddBin" style="margin-top:12px;">➕ 채집통 추가</button>`;
   mount.appendChild(board);
