@@ -469,7 +469,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
     <div class="mission">
       <div class="mtag">X-17 Expedition</div>
       <div class="mname">행성 탐사 임무</div>
-      <div class="stage-pill" id="stagePill">단계 1 / 2 · 자료 없는 분류</div>
+      <div class="stage-pill" id="stagePill">비지도 분류 · 자료 없는 분류</div>
     </div>
     <div class="score-box">
       <div class="score-lbl">SCORE</div>
@@ -514,8 +514,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
       <div class="report-box hidden" id="reportBox">
         <div class="rl" id="reportMsg">✅ 보고 완료! 모선이 분류를 수신했습니다.</div>
-        <div class="hint" id="reportHint">선생님이 모든 대원의 분류를 모아 회의한 뒤,<br>다음 단계(정답표)를 공개하면 아래 버튼이 자동으로 열립니다.</div>
-        <div class="waiting" id="waiting"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 모선의 신호를 기다리는 중…</div>
+        <div class="hint" id="reportHint">선생님이 모든 대원의 분류를 모아 함께 살펴봅니다.<br>다른 대원들은 같은 외계인을 어떻게 다르게 묶었을까요?</div>
+        <div class="waiting" id="waiting"><span class="dot"></span><span class="dot"></span><span class="dot"></span> 모선의 귀환 신호를 기다리는 중…</div>
         <button class="btn hidden" id="toStage2" style="margin-top:14px;">▶ 단계 2로 이동 (정답표 받기)</button>
       </div>
     </div>
@@ -550,13 +550,13 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
   <!-- RESULT -->
   <div id="result" class="panel hidden">
-    <div class="rank" id="rank"></div>
-    <div class="stars" id="rStars"></div>
-    <div class="fscore" id="fscore"></div>
+    <div class="rank" id="rank">🛸 탐사 완료!</div>
+    <div class="stars" id="rStars">★ ★ ★</div>
+    <div class="fscore" id="fscore">행성 X-17 생명체 분류 임무 종료</div>
     <div class="recap">
-      <b>단계 1</b> 에선 정답표가 없어 직접 패턴을 찾아 묶었어요 → 이게 <b>비지도학습</b>(군집화)입니다.<br><br>
-      <b>단계 2</b> 에선 모선이 준 정답표로 새 생명체를 분류했어요 → 이게 <b>지도학습</b>(분류)입니다.<br><br>
-      핵심 차이는 단 하나, <b>정답표(레이블)가 있느냐 없느냐</b> 입니다.
+      정답표 없이, 비슷한 것끼리 직접 묶어 <b>나만의 분류</b>를 만들었어요.<br><br>
+      그런데 친구들은 저마다 <b>다르게</b> 묶었죠? 색깔로, 모양으로, 다리 수로… <b style="color:var(--cyan)">정답이 정해져 있지 않으니</b> 무엇에 주목하느냐에 따라 묶음이 달라집니다.<br><br>
+      이렇게 <b>정답(레이블) 없이 비슷한 것끼리 묶는 것</b> — 이게 바로 <b>비지도학습</b>(군집화)이에요. 그리고 그 묶음이 무엇인지(늑대인지 고양이인지) 이름을 붙이는 건 <b>사람의 몫</b>이고요.
     </div>
     <button class="btn ghost" id="replay">🔄 다시 탐사하기</button>
   </div>
@@ -617,9 +617,9 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
     </div>
   </div>
 
-  <button class="btn" id="tProceed" style="display:none;margin-top:22px;">2단계 시작</button>
+  <button class="btn" id="tProceed" style="display:none;margin-top:22px;">🌍 탐사 종료 · 지구로 귀환</button>
 
-  <!-- 단계 2 현황 -->
+  <!-- 단계 2 현황 (지도학습 — 현재 비활성) -->
   <div id="stage2Panel" style="display:none;margin-top:22px;">
     <div class="tally" style="margin-bottom:18px;">
       <h4>📝 단계 2 (지도학습) 현황</h4>
@@ -1200,33 +1200,28 @@ function endExpedition(){
     finishResult();
   });
 }
-/* teacher's end-of-lesson summary: each student's score/rank */
+/* teacher's end-of-lesson summary (unsupervised-only) */
 function showTeacherSummary(){
-  const panel=document.getElementById('stage2Panel');
   if(document.getElementById('teacherSummary')) return;
+  const panel=document.getElementById('stage2Panel');
+  panel.style.display='block';   /* reuse this area to hold the summary */
   const box=document.createElement('div');
   box.id='teacherSummary';
   box.className='tally';
   box.style.marginTop='18px';
-  const names=Object.keys(stage2Done);
-  const rankOf=(c,total)=>rankByStage2(c,total);
-  let rows;
-  if(!names.length){
-    rows='<p style="font-size:13px;color:var(--text-dim);">제출한 대원이 없습니다.</p>';
-  } else {
-    rows=names.map(n=>{
-      const d=stage2Done[n];
-      if(d.correct===null) return `<div class="bar-row"><span class="bl">🧑‍🚀 ${n}</span><span class="bn" style="color:var(--amber);">미제출</span></div>`;
-      const [rank,star]=rankOf(d.correct,d.total);
-      return `<div class="bar-row"><span class="bl">🧑‍🚀 ${n}</span><span style="flex:1;font-size:12.5px;color:var(--text-dim);text-align:center;">${'★'.repeat(star)}${'☆'.repeat(3-star)} ${rank}</span><span class="bn">${d.correct}/${d.total}</span></div>`;
-    }).join('');
-  }
-  box.innerHTML=`<h4>🌍 탐사 종료 · 대원별 결과</h4>
-    <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">모든 대원이 지구로 귀환했습니다. 각 대원이 단계 2에서 받은 결과예요.</p>
+  const reported=getSubs().map(s=>s.name);
+  const allNames=[...new Set([...arrivals, ...reported])];
+  const rows = allNames.length
+    ? allNames.map(n=>{
+        const done=reported.includes(n);
+        return `<div class="bar-row"><span class="bl">🧑‍🚀 ${n}</span><span style="flex:1;font-size:12.5px;color:var(--text-dim);text-align:center;">${done?'✅ 분류 보고 완료':'· 미보고'}</span></div>`;
+      }).join('')
+    : '<p style="font-size:13px;color:var(--text-dim);">보고한 대원이 없습니다.</p>';
+  box.innerHTML=`<h4>🌍 탐사 종료 · 비지도학습 임무 완료</h4>
+    <p style="font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">모든 대원이 지구로 귀환했습니다. 대원들은 정답표 없이 저마다의 기준으로 외계 생명체를 묶었어요.</p>
     ${rows}
-    <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;line-height:1.6;">👉 학생들 각자의 화면에는 등급·점수·개념 정리가 담긴 결과 화면이 떠 있습니다.</p>`;
+    <p style="font-size:12.5px;color:var(--text-dim);margin-top:12px;line-height:1.6;">👉 같은 생명체인데도 대원마다 다르게 묶였죠? <b style="color:var(--cyan)">정답이 정해져 있지 않다</b>는 것 — 이게 비지도학습의 핵심입니다. 위 대원별 결과 카드를 눌러 분류와 적합도를 다시 비교해 보세요.</p>`;
   panel.appendChild(box);
-  /* tidy the dashboard: hide the now-finished controls */
   document.getElementById('tShowAnswers').style.display='none';
   document.getElementById('tEnd').style.display='none';
   box.scrollIntoView({behavior:'smooth',block:'start'});
@@ -1240,10 +1235,7 @@ function rankByStage2(correct, total){
 }
 function finishResult(){
   const r=document.getElementById('result'); r.classList.remove('hidden'); r.classList.add('reveal');
-  const [rank,n]=rankByStage2(myStage2Correct, quizData.length);
-  document.getElementById('rank').textContent=rank;
-  document.getElementById('rStars').textContent='★'.repeat(n)+'☆'.repeat(3-n);
-  document.getElementById('fscore').textContent=`단계 2 정답 ${myStage2Correct}/${quizData.length} · 최종 점수 ${Math.round(score)}점`;
+  /* unsupervised-only: result text is fixed in HTML; just celebrate */
   sWin(); confettiBurst();
   window.scrollTo({top:0,behavior:'smooth'});
 }
@@ -1663,12 +1655,10 @@ document.getElementById('tBegin').onclick=function(){
   sWin();
 };
 document.getElementById('tProceed').onclick=function(){
-  sendStage2Signal();
-  this.textContent='✅ 2단계 시작됨 · 대원들이 정답표로 분류 중';
-  this.disabled=true; sWin();
-  document.getElementById('stage2Panel').style.display='block';
-  document.getElementById('tShowAnswers').style.display='none';  /* no button — show it directly */
-  showDemoAnswers();   /* student stage-2 screen appears on teacher view right away */
+  /* 비지도학습만 운영: 2단계로 가지 않고 바로 탐사를 종료한다 */
+  if(!confirm('탐사를 종료할까요? 모든 대원의 화면이 지구 귀환 화면으로 전환됩니다.')) return;
+  sendEndSignal();
+  endExpedition();
 };
 
 /* ---- stage 2 progress tracking on teacher side ---- */
@@ -1804,7 +1794,7 @@ function beginExpedition(){
   setTimeout(()=>{
     lobby.classList.add('hidden');
     document.getElementById('stage1').classList.remove('hidden');
-    document.getElementById('stagePill').textContent='단계 1 / 2 · 자료 없는 분류';
+    document.getElementById('stagePill').textContent='비지도 분류 · 자료 없는 분류';
     sLaunch();
   },550);
 }
