@@ -469,11 +469,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
     <div class="mission">
       <div class="mtag">X-17 Expedition</div>
       <div class="mname">행성 탐사 임무</div>
-      <div class="stage-pill" id="stagePill">비지도 분류 · 자료 없는 분류</div>
-    </div>
-    <div class="score-box">
-      <div class="score-lbl">SCORE</div>
-      <div class="score-num" id="scoreNum">0</div>
+      <div class="stage-pill" id="stagePill">외계 생명체 분류 활동</div>
     </div>
   </div>
 
@@ -497,8 +493,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
   <div id="stage1" class="hidden">
     <div class="panel reveal">
       <div class="banner info">
-        🛰️ <b>단계 1 · 비지도학습</b> — 자료가 없습니다! 생명체들은 <b>색, 모양, 다리 수, 눈 개수, 촉수 수, 무늬, 뿔, 크기</b> 등 여러 특징을 가지고 있어요.
-        무엇을 기준으로 묶을지는 대원의 선택! 채집통은 <b>추가</b> 버튼으로 필요한 만큼 늘릴 수 있어요. 같은 종류가 한 통에 모일수록 <b>발견 보너스</b>가 쌓입니다.
+        🛰️ <b>비지도학습 · 자료 없는 분류</b> — 정답표가 없습니다! 생명체들은 <b>색, 모양, 다리 수, 눈 개수, 촉수 수, 무늬, 뿔, 크기</b> 등 여러 특징을 가지고 있어요.
+        무엇을 기준으로 묶을지는 대원의 선택! 채집통은 <b>추가</b> 버튼으로 필요한 만큼 늘릴 수 있어요. 비슷한 것끼리 자유롭게 모아 보세요.
       </div>
       <h2 class="sec">🔬 미확인 생명체 (15)</h2>
       <div class="pool" id="pool"></div>
@@ -510,8 +506,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       </div>
       <button class="btn ghost" id="addBin" style="margin-top:12px;">➕ 채집통 추가</button>
 
-      <div class="bonusline" id="bonusLine">발견 보너스: <b>0</b>점 · 15마리를 모두 채집통에 넣고 보고하세요.</div>
-      <button class="btn" id="submit1" disabled>📡 단계 1 모선에 보고하기</button>
+      <div class="bonusline" id="bonusLine">15마리를 모두 채집통에 넣으면 보고할 수 있어요.</div>
+      <button class="btn" id="submit1" disabled>📡 모선에 보고하기</button>
 
       <div class="report-box hidden" id="reportBox">
         <div class="rl" id="reportMsg">✅ 보고 완료! 모선이 분류를 수신했습니다.</div>
@@ -551,9 +547,8 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
   <!-- RESULT -->
   <div id="result" class="panel hidden">
-    <div class="rank" id="rank">🛸 탐사 완료!</div>
-    <div class="stars" id="rStars">★ ★ ★</div>
-    <div class="fscore" id="fscore">행성 X-17 생명체 분류 임무 종료</div>
+    <div class="rank" id="rank">🌍 무사 귀환!</div>
+    <div class="fscore" id="fscore">행성 X-17 탐사를 마치고 지구로 돌아왔어요</div>
     <div class="recap">
       정답표 없이, 비슷한 것끼리 직접 묶어 <b>나만의 분류</b>를 만들었어요.<br><br>
       그런데 친구들은 저마다 <b>다르게</b> 묶었죠? 색깔로, 모양으로, 다리 수로… <b style="color:var(--cyan)">정답이 정해져 있지 않으니</b> 무엇에 주목하느냐에 따라 묶음이 달라집니다.<br><br>
@@ -583,7 +578,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       <button class="btn ghost" id="demoToggle" style="width:auto;margin:0;padding:6px 12px;font-size:12px;">접기 ▲</button>
     </div>
     <p style="font-size:12.5px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">
-      학생들이 단계 1에서 보게 될 화면입니다. 여기서 직접 끌어다 옮기며 시범을 보여줄 수 있어요. (시범용이라 실제 집계엔 반영되지 않습니다)
+      학생들이 보게 될 분류 화면입니다. 여기서 직접 끌어다 옮기며 시범을 보여줄 수 있어요. (시범용이라 실제 집계엔 반영되지 않습니다)
     </p>
     <div id="demoMount"></div>
   </div>
@@ -596,7 +591,7 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
       모두 모이면 아래 버튼을 눌러 비지도학습 임무를 시작하세요.
     </p>
     <div id="arriveList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;"></div>
-    <button class="btn" id="tBegin">🚀 탐사 시작 · 대원들에게 단계 1 열기</button>
+    <button class="btn" id="tBegin">🚀 탐사 시작 · 대원들에게 분류 활동 열기</button>
   </div>
 
   <!-- 참여 명단 (수업 내내 표시) -->
@@ -703,19 +698,8 @@ setInterval(shoot, 4500);
 
 /* ================= Game state ================= */
 let score=0, bonus=0;
-const scoreNum=document.getElementById('scoreNum');
 const progBar=document.getElementById('progBar');
-function setScore(v,animate){
-  const target=Math.round(v); score=v;
-  if(animate){
-    const start=parseInt(scoreNum.textContent)||0; const t0=performance.now();
-    (function tick(t){
-      const k=Math.min(1,(t-t0)/450);
-      scoreNum.textContent=Math.round(start+(target-start)*k);
-      if(k<1) requestAnimationFrame(tick);
-    })(t0);
-  } else scoreNum.textContent=target;
-}
+function setScore(v,animate){ /* scoring removed — kept as no-op for legacy calls */ }
 
 /* ================= Creatures =================
    각 생명체는 여러 특징을 가집니다. 특징이 일부러 엇갈리게 설계돼 있어
@@ -977,29 +961,19 @@ function touchEnd(e){
 
 const ZONES=ALL_ZONES;
 function updateBonus(){
-  let total=0;
-  ZONES.forEach(z=>{
-    const slot=document.querySelector(`.bin[data-zone="${z}"] .slot`);
-    if(!slot) return;
-    const chips=[...slot.children]; if(chips.length<2) return;
-    const cnt={}; chips.forEach(ch=>cnt[ch.dataset.c]=(cnt[ch.dataset.c]||0)+1);
-    total+=(Math.max(...Object.values(cnt))-1)*10;
-  });
-  bonus=total;
   const remaining=pool.children.length;
   document.getElementById('bonusLine').innerHTML = remaining>0
-    ? `발견 보너스: <b>${bonus}</b>점 · 아직 ${remaining}마리 남음`
-    : `발견 보너스: <b>${bonus}</b>점 · 모두 채집 완료! 보고 가능`;
+    ? `아직 <b>${remaining}</b>마리가 남았어요. 모두 채집통에 넣으면 보고할 수 있어요.`
+    : `모두 채집 완료! 이제 <b>보고</b>할 수 있어요.`;
   document.getElementById('submit1').disabled = remaining>0;
 }
 
 /* ================= Stage transitions ================= */
 document.getElementById('submit1').onclick=function(){
   if(DEMO_MODE){
-    alert('지금은 학생 화면 미리보기(시범) 모드입니다.\n실제 보고는 학생만 전송됩니다. 우측 상단 "관제소로 돌아가기"를 누르세요.');
+    alert('지금은 학생 화면 미리보기(시범) 모드입니다.\n실제 보고는 학생만 전송됩니다.');
     return;
   }
-  setScore(bonus,true);
   sLaunch();
   progBar.style.width='40%';
   /* build bins map: creature index -> A..E */
