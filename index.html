@@ -321,6 +321,15 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
 /* ---- result ---- */
 #result{text-align:center;}
+.medal-wrap{margin-bottom:6px;}
+.medal{width:120px;height:120px;margin:0 auto 14px;border-radius:50%;display:flex;
+  align-items:center;justify-content:center;font-size:62px;
+  background:radial-gradient(circle at 38% 32%, #ffe9a8, #ffc94d 45%, #c8941f 80%);
+  box-shadow:0 0 50px rgba(255,201,77,.55), inset -8px -8px 20px rgba(0,0,0,.25), inset 6px 6px 16px rgba(255,255,255,.4);
+  animation:medalPop .6s cubic-bezier(.2,1.4,.5,1) both, medalGlow 2.4s ease-in-out infinite .6s;}
+@keyframes medalPop{0%{transform:scale(0) rotate(-30deg);opacity:0;}100%{transform:scale(1) rotate(0);opacity:1;}}
+@keyframes medalGlow{0%,100%{box-shadow:0 0 45px rgba(255,201,77,.45), inset -8px -8px 20px rgba(0,0,0,.25), inset 6px 6px 16px rgba(255,255,255,.4);}
+  50%{box-shadow:0 0 70px rgba(255,201,77,.8), inset -8px -8px 20px rgba(0,0,0,.25), inset 6px 6px 16px rgba(255,255,255,.4);}}
 #result .rank{font-family:var(--display);font-size:clamp(24px,6vw,38px);font-weight:900;
   margin-bottom:8px;background:linear-gradient(120deg,#fff,var(--amber));
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
@@ -473,8 +482,6 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
     </div>
   </div>
 
-  <div class="progress"><i id="progBar"></i></div>
-
   <!-- LOBBY (대기실) -->
   <div id="lobby">
     <div class="panel reveal" style="text-align:center;">
@@ -547,12 +554,16 @@ h2.sec{font-family:var(--display);font-size:14px;letter-spacing:1px;color:var(--
 
   <!-- RESULT -->
   <div id="result" class="panel hidden">
-    <div class="rank" id="rank">🌍 무사 귀환!</div>
-    <div class="fscore" id="fscore">행성 X-17 탐사를 마치고 지구로 돌아왔어요</div>
+    <div class="medal-wrap">
+      <div class="medal">🏅</div>
+      <div class="rank" id="rank">전설의 탐사대원</div>
+      <div class="stars" id="rStars">★ ★ ★</div>
+      <div class="fscore" id="fscore">행성 X-17 탐사를 무사히 마치고 지구로 귀환했습니다</div>
+    </div>
     <div class="recap">
       정답표 없이, 비슷한 것끼리 직접 묶어 <b>나만의 분류</b>를 만들었어요.<br><br>
       그런데 친구들은 저마다 <b>다르게</b> 묶었죠? 색깔로, 모양으로, 다리 수로… <b style="color:var(--cyan)">정답이 정해져 있지 않으니</b> 무엇에 주목하느냐에 따라 묶음이 달라집니다.<br><br>
-      이렇게 <b>정답(레이블) 없이 비슷한 것끼리 묶는 것</b> — 이게 바로 <b>비지도학습</b>(군집화)이에요. 그리고 그 묶음이 무엇인지(늑대인지 고양이인지) 이름을 붙이는 건 <b>사람의 몫</b>이고요.
+      이렇게 <b>정답(레이블) 없이 비슷한 것끼리 묶는 것</b> — 이게 바로 <b>비지도학습</b>(군집화)이에요.
     </div>
     <button class="btn ghost" id="replay">🔄 다시 탐사하기</button>
   </div>
@@ -698,7 +709,7 @@ setInterval(shoot, 4500);
 
 /* ================= Game state ================= */
 let score=0, bonus=0;
-const progBar=document.getElementById('progBar');
+const progBar={style:{}};  /* progress bar removed; harmless stub for legacy width assignments */
 function setScore(v,animate){ /* scoring removed — kept as no-op for legacy calls */ }
 
 /* ================= Creatures =================
@@ -837,7 +848,7 @@ document.querySelectorAll('.bin, .pool').forEach(bindDropZone);
 
 /* ---- add / remove collection bins (start at 2, min 2, max 8) ---- */
 const ALL_ZONES=['A','B','C','D','E','F','G','H'];
-const MIN_BINS=3;
+const MIN_BINS=2;
 function relabelBins(){
   const bins=[...document.querySelectorAll('#bins .bin')];
   bins.forEach((bin,i)=>{
@@ -1153,18 +1164,8 @@ let expeditionEnded=false;
 function endExpedition(){
   if(expeditionEnded) return;
   expeditionEnded=true;
-  const isTeacher=document.getElementById('teacher').style.display==='block';
-  /* play return-to-Earth cinematic, then: teacher → back to dashboard summary, student → own result */
+  /* play return-to-Earth cinematic, then EVERYONE sees the same medal result screen */
   playReturnRocket(()=>{
-    if(isTeacher){
-      /* teacher stays on the dashboard and sees each student's result */
-      document.getElementById('teacher').style.display='block';
-      document.getElementById('game').style.display='none';
-      showTeacherSummary();
-      window.scrollTo({top:0,behavior:'smooth'});
-      return;
-    }
-    /* student → own result screen */
     document.getElementById('teacher').style.display='none';
     const wrap=document.getElementById('game');
     wrap.style.display='';
